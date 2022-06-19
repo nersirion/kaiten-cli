@@ -1,0 +1,69 @@
+{
+  "created": "2022-06-17T07:27:36.805Z",
+  "updated": "2022-06-17T07:27:36.805Z",
+  "id": 1032486,
+  "name": "Готовность",
+  "policy_id": null,
+  "items": [
+    {
+      "created": "2022-06-17T07:27:54.941Z",
+      "updated": "2022-06-17T07:27:54.941Z",
+      "id": 4960360,
+      "text": "Новые креды админа лежат в lockbox",
+      "sort_order": 1.6874283539099901,
+      "checked": false,
+      "checklist_id": 1032486,
+      "checker_id": null,
+      "user_id": 170216,
+      "checked_at": null,
+      "responsible_id": null,
+      "deleted": false,
+      "due_date": null
+    },
+    {
+      "created": "2022-06-17T07:30:34.577Z",
+      "updated": "2022-06-17T07:30:34.577Z",
+      "id": 4960419,
+      "text": "Логин в админский аккаунт по новым кредам",
+      "sort_order": 5.793241303892492,
+      "checked": false,
+      "checklist_id": 1032486,
+      "checker_id": null,
+      "user_id": 170216,
+      "checked_at": null,
+      "responsible_id": null,
+      "deleted": false,
+      "due_date": null
+    },
+    {
+      "created": "2022-06-17T07:30:15.210Z",
+      "updated": "2022-06-17T07:30:15.210Z",
+      "id": 4960417,
+      "text": "У сервиса графаны внешний ip",
+      "sort_order": 4.73633311071906,
+      "checked": false,
+      "checklist_id": 1032486,
+      "checker_id": null,
+      "user_id": 170216,
+      "checked_at": null,
+      "responsible_id": null,
+      "deleted": false,
+      "due_date": null
+    },
+    {
+      "created": "2022-06-17T07:29:55.457Z",
+      "updated": "2022-06-17T07:29:55.457Z",
+      "id": 4960392,
+      "text": "Из кред обновлен secret grafana",
+      "sort_order": 3.4633380465382073,
+      "checked": false,
+      "checklist_id": 1032486,
+      "checker_id": null,
+      "user_id": 170216,
+      "checked_at": null,
+      "responsible_id": null,
+      "deleted": false,
+      "due_date": null
+    }
+  ]
+}

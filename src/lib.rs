@@ -1,1 +1,1 @@
-mod kaiten;
+pub mod kaiten;

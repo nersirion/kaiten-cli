@@ -1,8 +1,5 @@
-use reqwest;
-use reqwest::header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE};
 use serde_derive::{Deserialize, Serialize};
-use tabled::{object::Rows,Disable, Rotate, MaxWidth, Modify, Table, Tabled};
-use clap::{Args, Parser, Subcommand};
+use tabled::Tabled;
 
 #[derive(Serialize, Deserialize, Debug, Tabled)]
 struct Comment {
@@ -43,8 +40,9 @@ pub struct Card {
     pub archived: bool,
     // #[header(hidden)]
     created: String,
+    #[tabled(skip)]
+    checklists: Option<Vec<Checklist>>
 }
-
 
 fn display_description(o: &Option<String>) -> String {
     match o{
@@ -100,3 +98,83 @@ impl std::fmt::Display for CardType {
         write!(f, "{}", self.letter)
     }
 }
+
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Checklist {
+    pub id: Option<u32>,
+    pub name: String,
+    pub items: Option<Vec<ChecklistItem>>
+}
+
+impl std::fmt::Display for Checklist {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+    match &self.items{
+        Some(value) => {
+        let items: Vec<String> = value.into_iter().map(|x| format!("{}", x)).collect();
+        write!(f, "### {}\n\n{}", self.name, items.join("\n"))
+                }
+        None => {write!(f, "")}
+    }
+}
+}
+impl Checklist {
+    pub fn to_string(&self) -> String {
+        let mut checklist = format!("### {}\n\n", self.name);
+        let items_string = if self.items.is_some() {
+            let items: Vec<String> = self.items.as_ref().unwrap().into_iter().map(|item| item.to_string()).collect();
+            items.join("\n")
+        }
+        else {
+            "".to_string()
+        };
+        checklist = format!("{}{}", checklist, items_string);
+        checklist
+    }
+    pub fn from_string(text: String) -> Self {
+        let lines: Vec<&str> = text.split("\n").collect();
+        let name = lines[0][4..].to_string();
+        let items = lines[2..].into_iter().map(|item| ChecklistItem::from_string(item.to_string())).collect();
+        Self {
+            id: None,
+            name: name,
+            items: Some(items)
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ChecklistItem {
+    pub id: Option<u32>,
+    pub text: String,
+    pub checked: bool
+}
+
+impl std::fmt::Display for ChecklistItem {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}", self.to_string())
+    }
+}
+
+impl ChecklistItem {
+    fn to_string(&self) -> String {
+        let check = if self.checked { "[x]"} else {"[ ]"};
+        let string_item = format!("{} {}", check, self.text);
+        string_item
+
+    }
+    pub fn from_string(text: String) -> Self {
+        let check = match &text[0..3] {
+            "[ ]" => false,
+            "[x]" => true,
+            _ => panic!("Text will be start with [ ] or [x]")
+        };
+        Self {
+            id: None,
+            text: text[4..].to_string(),
+            checked: check
+        }
+    }
+}
+
+
