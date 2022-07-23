@@ -12,6 +12,7 @@ fn test_checklists_from_json() {
     assert!(checklist.items.is_some());
     assert_eq!(checklist.items.unwrap().len(), 4);
 }
+
 #[test]
 fn test_checklists() {
     let json_file_path = Path::new("./tests/test_files/checklist.json");

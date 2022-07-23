@@ -30,21 +30,21 @@ pub struct Cli {
 impl Cli {
     pub fn get_url(&self) -> String {
         match &self.command {
-            Commands::Card(card) => {
-                format!(
-                    "{}/cards/{}",
-                    API_URL,
-                    card.id.as_ref().unwrap_or(&"".to_string())
-                )
-            }
+            Commands::Card { options } => match options {
+                CardOptions::Ls(_) | CardOptions::New {} => {
+                    format!("{}/cards", API_URL,)
+                }
+                CardOptions::Get { card_id }
+                | CardOptions::Edit { card_id }
+                | CardOptions::Mv { card_id } => {
+                    format!("{}/cards/{}", API_URL, card_id)
+                }
+            },
             Commands::Columns {} => {
                 format!("{}/boards/96239/columns/", API_URL)
             }
             Commands::Users {} => {
                 format!("{}/users/", API_URL)
-            }
-            Commands::Test { .. } => {
-                format!("empty")
             }
         }
     }
@@ -52,69 +52,82 @@ impl Cli {
     pub async fn get_table(
         &self,
         client: reqwest::Client,
-    ) -> Result<Table, Box<dyn std::error::Error>> {
+    ) -> Result<String, Box<dyn std::error::Error>> {
         let url = self.get_url();
         let response = get_data(&client, url.as_str()).await?;
-        let table = match &self.command {
-            Commands::Card(card) => {
-                if card.id.is_some() {
-                    let json: Card = response.json().await?;
-                    card.get_table(vec![json])
-                } else {
-                    let json: Vec<Card> = response.json().await?;
-                    card.get_table(json)
+        let info = match &self.command {
+            Commands::Card { options } => {
+                match options {
+                    CardOptions::Get { card_id } => {
+                        let json: Card = response.json().await?;
+                        // card.get_table(vec![json])
+                        json.to_string()
+                    }
+                    CardOptions::Ls(card) => {
+                        let json: Vec<Card> = response.json().await?;
+                        options.get_table(json, card).to_string()
+                    }
+                    _ => String::from(""),
                 }
             }
             Commands::Columns {} => {
                 let json: Vec<Column_> = response.json().await?;
-                Table::new(json)
+                let table = Table::new(json);
+                table.to_string()
+
             }
             Commands::Users {} => {
                 let json: Vec<Author> = response.json().await?;
-                Table::new(json)
+                Table::new(json).to_string()
             }
-            Commands::Test { .. } => Table::new(vec![format!("hi")]),
         };
-        Ok(table)
+        Ok(info)
     }
 }
+
 #[derive(Subcommand)]
 pub enum Commands {
-    Card(Card_),
+    Card {
+        #[clap(subcommand)]
+        options: CardOptions,
+    },
     Columns {},
     Users {},
-    Test {
-        #[clap(subcommand)]
-        cmd: Cmd2,
-    },
 }
+
 #[derive(Subcommand)]
-enum Cmd2 {
-    Ls {},
-    Get {},
+enum CardOptions {
+    /// print all cards for user
+    Ls(Card_),
+    /// get card info
+    Get { card_id: String },
+    /// edit card
+    Edit { card_id: String },
+    /// create new card
+    New {},
+    /// move card to next column
+    Mv { card_id: String },
 }
 
 #[derive(Args)]
 pub struct Card_ {
-    pub id: Option<String>,
     #[clap(long, short)]
-    comments: bool,
+    columns: Option<String>,
 }
-impl Card_ {
-    pub fn get_table(&self, json: Vec<Card>) -> Table {
-        if self.id.is_none() {
-            let mut filter_cards: Vec<&Card> = json
-                .iter()
-                .filter(|card| card.column.title != "Done" && !card.archived)
-                .collect();
-            filter_cards.sort_by(|a, b| a.sort_order.partial_cmp(&b.sort_order).unwrap());
-            Table::new(filter_cards)
-                .with(Modify::new(Rows::new(1..)).with(MaxWidth::wrapping(80)))
-                .with(Disable::Column(6..10))
-        } else {
-            Table::new(json)
-                .with(Modify::new(Rows::new(1..)).with(MaxWidth::wrapping(110).keep_words()))
-                .with(Rotate::Left)
+impl CardOptions {
+    pub fn get_table(&self, json: Vec<Card>, card: &Card_) -> Table {
+        match self {
+            CardOptions::Ls(_) => {
+                let mut filter_cards: Vec<&Card> = json
+                    .iter()
+                    .filter(|card| card.column.title != "Done" && !card.archived)
+                    .collect();
+                filter_cards.sort_by(|a, b| a.sort_order.partial_cmp(&b.sort_order).unwrap());
+                Table::new(filter_cards)
+                    .with(Modify::new(Rows::new(1..)).with(MaxWidth::wrapping(70)))
+                    // .with(Disable::Column(6..10))
+            }
+            _ => Table::new(vec![""]),
         }
     }
 }

@@ -23,25 +23,99 @@ impl std::fmt::Display for Author {
     }
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Tag {
+    id: Option<u32>,
+    name: String,
+}
+
+fn display_tags(tags: &Option<Vec<Tag>>) -> String {
+    match tags {
+        Some(tags) => { 
+            let str_tags: Vec<&str> = tags.into_iter().map(|tag| tag.name.as_str()).collect();
+            format!("{}", str_tags.join(", "))
+        }
+        None => format!("")
+    }
+}
+
+fn display_id(id: &Option<u32>) -> String {
+    match id {
+        Some(id) => { 
+            format!("{}", id)
+        }
+        None => format!("")
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Tabled)]
 pub struct Card {
-    id: u32,
+    #[tabled(display_with="display_id")]
+    id: Option<u32>,
     pub title: String,
     pub column: Column_,
     lane: Lane,
     #[tabled(rename="type")]
     r#type: CardType,
+    #[tabled(skip)]
     pub sort_order: f32,
-    // hiden
-    #[tabled(display_with="display_option")]
+    #[tabled(display_with="display_members")]
     members: Option<Vec<Member>>,
+    #[tabled(display_with="display_tags")]
+    tags: Option<Vec<Tag>>,
     #[tabled(display_with="display_description")]
     description: Option<String>,
+    #[tabled(skip)]
     pub archived: bool,
     // #[header(hidden)]
+    #[tabled(skip)]
     created: String,
     #[tabled(skip)]
     checklists: Option<Vec<Checklist>>
+}
+
+impl Card {
+    fn empty() -> Card {
+        Card {
+            id: None,
+            title: "Title".to_string(),
+            column: Column_ {
+                id: 0,
+                title: "Test".to_string()
+            },
+            lane: Lane{
+                id: 0,
+                title: "test".to_string()
+        },
+            r#type: CardType {
+                name: "Test".to_string(),
+                letter: "Test".to_string() 
+            },
+            tags: None,
+            sort_order: 0.0,
+            members: None,
+            description: None,
+            archived: false,
+            created: "Test".to_string(),
+            checklists: None
+
+        }
+    }
+    pub fn to_string(&self) -> String {
+        println!("{}", serde_yaml::to_string(&Card::empty()).unwrap());
+        let title = format!("# Title: {}\n\n", self.title);
+        let lane = format!("## Line: {}\n", self.lane);
+        let card_type = format!("## Type: {}\n", self.r#type);
+        let tags = format!("## Tags: {}", display_tags(&self.tags));
+        let desc = self.description.as_ref().unwrap();
+        let checklists: Vec<String> = if self.checklists.is_some() {self.checklists.as_ref().unwrap().into_iter().map(|x| x.to_string()).collect()} else {vec!["".to_string()]};
+        let text = format!("{}{}{}{}{}{}", title, lane, card_type, tags, desc, checklists.join("\n"));
+        text
+    }
+
+    // pub fn from_string(text: String) -> Self {
+    //     
+    // }
 }
 
 fn display_description(o: &Option<String>) -> String {
@@ -51,7 +125,7 @@ fn display_description(o: &Option<String>) -> String {
     }
 }
 
-fn display_option(o: &Option<Vec<Member>>) -> String {
+fn display_members(o: &Option<Vec<Member>>) -> String {
     match o{
     Some(members) => {let mems: Vec<&str> = members.into_iter().map(|m| m.username.as_str()).collect();
         format!("{}", mems.join(",\n"))
@@ -171,7 +245,7 @@ impl ChecklistItem {
         };
         Self {
             id: None,
-            text: text[4..].to_string(),
+            text: if text.len()> 4 {text[4..].to_string()} else {"".to_string()},
             checked: check
         }
     }
