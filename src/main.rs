@@ -2,10 +2,9 @@ mod kaiten;
 mod cli;
 
 use reqwest;
-use crate::kaiten::{Author, Card};
 use crate::cli::Cli;
 use clap::Parser;
-use termimad::{MadSkin, Alignment, rgb};
+use termimad::{MadSkin, rgb};
 
 
 #[tokio::main]

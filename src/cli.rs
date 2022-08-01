@@ -1,7 +1,7 @@
 use crate::kaiten::*;
 use clap::{Args, Parser, Subcommand};
 use reqwest::header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE};
-use tabled::{object::Rows, Disable, MaxWidth, Modify, Rotate, Table};
+use tabled::{object::Rows, MaxWidth, Modify, Table};
 
 const API_URL: &str = "https://rubbles-stories.kaiten.ru/api/latest";
 
@@ -31,7 +31,7 @@ impl Cli {
     pub fn get_url(&self) -> String {
         match &self.command {
             Commands::Card { options } => match options {
-                CardOptions::Ls(_) | CardOptions::New {} => {
+                CardOptions::Ls{} | CardOptions::New {} => {
                     format!("{}/cards", API_URL,)
                 }
                 CardOptions::Get { card_id }
@@ -58,14 +58,18 @@ impl Cli {
         let info = match &self.command {
             Commands::Card { options } => {
                 match options {
-                    CardOptions::Get { card_id } => {
+                    CardOptions::Get { card_id: _ } => {
                         let json: Card = response.json().await?;
                         // card.get_table(vec![json])
                         json.to_string()
                     }
-                    CardOptions::Ls(card) => {
+                    CardOptions::Ls {} => {
                         let json: Vec<Card> = response.json().await?;
-                        options.get_table(json, card).to_string()
+                        options.get_table(json).to_string()
+                    }
+
+                    CardOptions::New{} => {
+                        Card::from_string()
                     }
                     _ => String::from(""),
                 }
@@ -98,7 +102,7 @@ pub enum Commands {
 #[derive(Subcommand)]
 enum CardOptions {
     /// print all cards for user
-    Ls(Card_),
+    Ls {},
     /// get card info
     Get { card_id: String },
     /// edit card
@@ -115,9 +119,9 @@ pub struct Card_ {
     columns: Option<String>,
 }
 impl CardOptions {
-    pub fn get_table(&self, json: Vec<Card>, card: &Card_) -> Table {
+    pub fn get_table(&self, json: Vec<Card>) -> Table {
         match self {
-            CardOptions::Ls(_) => {
+            CardOptions::Ls{} => {
                 let mut filter_cards: Vec<&Card> = json
                     .iter()
                     .filter(|card| card.column.title != "Done" && !card.archived)
