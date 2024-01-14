@@ -1,4 +1,3 @@
-use std::str::pattern::Pattern;
 use std::{
     fs::File,
     process::Command,
@@ -7,6 +6,23 @@ use std::io::{Write, Read};
 use serde_derive::{Deserialize, Serialize};
 use tabled::Tabled;
 use tempfile::Builder;
+use clap::{Args, Parser, Subcommand, lazy_static::lazy_static};
+use std::sync::Mutex;
+use std::collections::HashMap;
+
+lazy_static! {
+    pub static ref COLUMNS: Mutex<HashMap<String, Column_>> = Mutex::new(HashMap::new());
+    pub static ref USERS: Mutex<HashMap<String, u32>> = Mutex::new(HashMap::new());
+    
+}
+    // impl COLUMNS {
+    //     pub fn get_sort_vec(self) -> Vec<&Column_> {
+    //         let columns = self.lock().unwrap().iter();
+    //         let mut columns_vec = Vec::from_iter(columns.map(|(_, column)| column));
+    //         columns_vec.sort_by(|a, b| a.sort_order.partial_cmp(&b.sort_order).unwrap());
+    //         columns_vec
+    //     }
+    // }
 
 #[derive(Serialize, Deserialize, Debug, Tabled)]
 struct Comment {
@@ -20,8 +36,8 @@ struct Comment {
 
 #[derive(Serialize, Deserialize, Debug, Tabled)]
 pub struct Author{
-    id: u32,
-    username: String
+    pub id: u32,
+    pub username: String
 }
 
 impl std::fmt::Display for Author {
@@ -97,7 +113,8 @@ impl Card {
             title: "Title".to_string(),
             column: Column_ {
                 id: 0,
-                title: "Test".to_string()
+                title: "Test".to_string(),
+                sort_order: 0.0
             },
             lane: Lane{
                 id: 0,
@@ -120,13 +137,16 @@ impl Card {
     pub fn to_string(&self) -> String {
         let title = format!("# Title: {}\n\n", self.title);
         let lane = format!("## Lane: {}\n", self.lane);
+        let columns = COLUMNS.lock().unwrap();
+        let cs: Vec<String> = Vec::from_iter(columns.iter().map(|(k, _)| k.to_string()));
+        let cols = format!("<!-- {} -->\n", cs.join("|"));
         let column = format!("## Column: {}\n", self.column);
         let card_type = format!("## Type: {}\n", self.r#type);
         let tags = format!("## Tags: {}\n", display_tags(&self.tags));
         let desc = format!("## Description: \n{}\n", self.description.as_ref().unwrap());
         let checklists: Vec<String> = if self.checklists.is_some() {self.checklists.as_ref().unwrap().into_iter().map(|x| x.to_string()).collect()} else {vec!["".to_string()]};
         let checklists_str = format!("## Checklists:\n {}\n", checklists.join("\n"));
-        let text = format!("{}{}{}{}{}{}{}", title, lane, column, card_type, tags, desc, checklists_str);
+        let text = format!("{}{}{}{}{}{}{}{}", title, lane, cols, column, card_type, tags, desc, checklists_str);
         text
     }
 
@@ -149,6 +169,7 @@ impl Card {
         File::open(&path)
             .expect("Could not open file")
         .read_to_string(&mut card_text).expect("Could not read");
+        let title = Card::get_title(&card_text);
         let tags = Card::get_tags(&card_text);
         "".to_string()
     }
@@ -165,16 +186,13 @@ impl Card {
         let column_idx = card_text.find("## Column:").unwrap();
         let lane = &card_text[lane_idx+"## Lane:".len()..column_idx];
         Lane { id: 0, title: lane.to_string() }
-
-
-
     }
 
     fn get_column(card_text: &str) -> Column_ {
         let column_idx = card_text.find("## Column:").unwrap();
         let card_type_idx = card_text.find("## Type:").unwrap();
         let column = &card_text[column_idx+"## Column:".len()..card_type_idx];
-        Column_ { id: 0, title: column.to_string() }
+        Column_ { id: 0, title: column.to_string(), sort_order: 0.0 }
 
     }
 
@@ -183,7 +201,6 @@ impl Card {
         let checklists_idx = card_text.find("## Checklists:").unwrap();
         let card_type = &card_text[card_type_idx+"## Type:".len()..checklists_idx];
         CardType { name: card_type.to_string(), letter: "".to_string() }
-
 
     }
 
@@ -246,10 +263,12 @@ struct Member {
     username: String
 }
 
-#[derive(Serialize, Deserialize, Debug, Tabled)]
+#[derive(Serialize, Deserialize, Debug, Tabled, Clone)]
 pub struct Column_ {
-    id: u32,
+    pub id: u32,
     pub title: String,
+    #[tabled(skip)]
+    pub sort_order: f32,
 }
 impl std::fmt::Display for Column_ {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
