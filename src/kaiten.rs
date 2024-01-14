@@ -6,7 +6,8 @@ use std::io::{Write, Read};
 use serde_derive::{Deserialize, Serialize};
 use tabled::Tabled;
 use tempfile::Builder;
-use clap::{Args, Parser, Subcommand, lazy_static::lazy_static};
+use clap::{Args, Parser, Subcommand};
+use lazy_static::lazy_static;
 use std::sync::Mutex;
 use std::collections::HashMap;
 

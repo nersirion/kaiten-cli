@@ -1,10 +1,10 @@
 use std::collections::HashMap;
 use crate::kaiten::*;
-use clap::{Args, Parser, Subcommand, lazy_static::lazy_static};
+use clap::{Args, Parser, Subcommand};
 use reqwest::header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE};
-use tabled::{object::Rows, MaxWidth, Modify, Table};
+use tabled::{settings::{object::Rows, Width, Modify, Style}, Table };
 
-const API_URL: &str = "https://rubbles-stories.kaiten.ru/api/latest";
+const API_URL: &str = env!("API_URL");
 
 use serde_derive::{Deserialize, Serialize};
 
@@ -77,7 +77,7 @@ impl Cli {
         match &self.command {
             Commands::Card { options } => match options {
                 CardOptions::Ls{} | CardOptions::New {} => {
-                    format!("{}/cards", API_URL,)
+                    format!("{}/cards?space_id=38223", API_URL,)
                 }
                 CardOptions::Get { card_id }
                 | CardOptions::Edit { card_id }
@@ -113,7 +113,7 @@ impl Cli {
                     }
                     CardOptions::Ls {} => {
                         let json: Vec<Card> = response.json().await?;
-                        options.get_table(json).to_string()
+                        options.get_table(json)
                     }
 
                     CardOptions::New{} => {
@@ -190,7 +190,7 @@ pub struct Card_ {
     columns: Option<String>,
 }
 impl CardOptions {
-    pub fn get_table(&self, json: Vec<Card>) -> Table {
+    pub fn get_table(&self, json: Vec<Card>) -> String {
         match self {
             CardOptions::Ls{} => {
                 let mut filter_cards: Vec<&Card> = json
@@ -199,10 +199,12 @@ impl CardOptions {
                     .collect();
                 filter_cards.sort_by(|a, b| a.sort_order.partial_cmp(&b.sort_order).unwrap());
                 Table::new(filter_cards)
-                    .with(Modify::new(Rows::new(1..)).with(MaxWidth::wrapping(70)))
+                    .with(Style::markdown())
+                    .with(Modify::new(Rows::new(0..)).with(Width::wrap(70)))
+                    .to_string()
                     // .with(Disable::Column(6..10))
             }
-            _ => Table::new(vec![""]),
+            _ => Table::new(vec![""]).to_string(),
         }
     }
 }
