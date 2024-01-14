@@ -1,4 +1,4 @@
-mod kaiten;
+mod models;
 mod cli;
 
 use reqwest;

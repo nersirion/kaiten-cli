@@ -1,5 +1,6 @@
 use std::collections::HashMap;
-use crate::kaiten::*;
+use crate::models::*;
+use crate::models::common::{USERS, COLUMNS};
 use clap::{Args, Parser, Subcommand};
 use reqwest::header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE};
 use tabled::{settings::{object::Rows, Width, Modify, Style}, Table };
@@ -56,15 +57,15 @@ impl Cli {
     async fn init(&self, client: &reqwest::Client) -> Result<(), Box<dyn std::error::Error>> {
         let url = format!("{}/boards/96239/columns/", API_URL);
         let response = get_data(&client, url.as_str()).await?;
-        let json: Vec<Column_> = response.json().await?;
+        let json: Vec<Column> = response.json().await?;
         for d in json.iter() {
             let title = d.title.as_str();
-            let column = Column_{title: d.title.to_string(), id: d.id, sort_order: d.sort_order};
+            let column = Column{title: d.title.to_string(), id: d.id, sort_order: d.sort_order};
             COLUMNS.lock().unwrap().insert(title.to_string(), column);
         };
         let url = format!("{}/users/", API_URL);
         let response = get_data(&client, url.as_str()).await?;
-        let json: Vec<Author> = response.json().await?;
+        let json: Vec<User> = response.json().await?;
         for d in json.iter() {
             let author = d.username.as_str();
             USERS.lock().unwrap().insert(author.to_string(), d.id);
@@ -151,7 +152,7 @@ impl Cli {
             }
             Commands::Users {} => {
                 let users = USERS.lock().unwrap();
-                let users_vec = Vec::from_iter(users.iter().map(|(username, id)| Author{username: username.to_string(), id: *id}));
+                let users_vec = Vec::from_iter(users.iter().map(|(username, id)| User{username: username.to_string(), id: *id}));
                 // let users = Vec::from_iter(USERS.lock().unwrap().iter());
                 Table::new(users_vec).to_string()
             }
