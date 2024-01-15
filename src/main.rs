@@ -1,17 +1,20 @@
 mod models;
-mod cli;
+mod command;
+mod api;
 
-use reqwest;
-use crate::cli::Cli;
+use crate::command::Cli;
 use clap::Parser;
 use termimad::{MadSkin, rgb};
+use crate::api::ApiClient;
 
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let client = reqwest::Client::new();
+    let client = ApiClient::default();
     let cli = Cli::parse();
-    let table = cli.get_table(client).await?;
+    let url = client.get_url(&cli.command);
+    let response = client.get_data(&url).await?;
+    let table = cli.get_table(response).await?;
     let mut skin = MadSkin::default();
     // println!("{}", skin.inline(&table));
     skin.set_headers_fg(rgb(255, 187, 0));
