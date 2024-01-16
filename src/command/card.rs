@@ -5,7 +5,7 @@ use crate::models::{Card as ModelsCard};
 
 
 #[derive(Subcommand)]
-pub enum CardOptions {
+pub enum CardCommands {
     /// print all cards for user
     Ls {},
     /// get card info
@@ -20,13 +20,13 @@ pub enum CardOptions {
 
 #[derive(Args)]
 pub struct Card {
-    #[clap(long, short)]
-    columns: Option<String>,
+    #[clap(subcommand)]
+    pub command: CardCommands
 }
-impl CardOptions {
+impl Card {
     pub fn get_table(&self, json: Vec<ModelsCard>) -> String {
-        match self {
-            CardOptions::Ls{} => {
+        match self.command {
+            CardCommands::Ls{} => {
                 let mut filter_cards: Vec<&ModelsCard> = json
                     .iter()
                     .filter(|card| card.column.title != "Done" && !card.archived)
