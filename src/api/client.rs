@@ -1,9 +1,9 @@
+use crate::command::{CardOptions, Commands};
+use crate::models::common::{COLUMNS, USERS};
 use crate::models::{Column, User};
 use reqwest;
-use reqwest::header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE};
+use reqwest::header::{HeaderValue, ACCEPT, AUTHORIZATION, CONTENT_TYPE};
 use std::env;
-use crate::command::{Commands, CardOptions};
-use crate::models::common::{USERS, COLUMNS};
 
 pub struct ApiClient {
     client: reqwest::Client,
@@ -23,15 +23,19 @@ impl ApiClient {
         }
     }
 
-    async fn init(&self) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn init(&self) -> Result<(), Box<dyn std::error::Error>> {
         let url = format!("{}/boards/96239/columns/", self.base_api_url);
         let response = self.get_data(url.as_str()).await?;
         let json: Vec<Column> = response.json().await?;
         for d in json.iter() {
             let title = d.title.as_str();
-            let column = Column{title: d.title.to_string(), id: d.id, sort_order: d.sort_order};
+            let column = Column {
+                title: d.title.to_string(),
+                id: d.id,
+                sort_order: d.sort_order,
+            };
             COLUMNS.lock().unwrap().insert(title.to_string(), column);
-        };
+        }
         let url = format!("{}/users/", self.base_api_url);
         let response = self.get_data(url.as_str()).await?;
         let json: Vec<User> = response.json().await?;
@@ -40,13 +44,23 @@ impl ApiClient {
             USERS.lock().unwrap().insert(author.to_string(), d.id);
         }
         Ok(())
-
-
     }
+
+    fn common_headers(&self) -> reqwest::header::HeaderMap {
+        let mut headers = reqwest::header::HeaderMap::new();
+        headers.insert(
+            AUTHORIZATION,
+            HeaderValue::from_str(&format!("Bearer {}", self.token)).unwrap(),
+        );
+        headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
+        headers.insert(ACCEPT, HeaderValue::from_static("application/json"));
+        headers
+    }
+
     pub fn get_url(&self, cmd: &Commands) -> String {
         match cmd {
             Commands::Card { options } => match options {
-                CardOptions::Ls{} | CardOptions::New {} => {
+                CardOptions::Ls {} | CardOptions::New {} => {
                     format!("{}/cards?space_id=38223", self.base_api_url,)
                 }
                 CardOptions::Get { card_id }
@@ -68,25 +82,24 @@ impl ApiClient {
         let response = self
             .client
             .get(url)
-            .header(AUTHORIZATION, format!("Bearer {}", self.token))
-            .header(CONTENT_TYPE, "application/json")
-            .header(ACCEPT, "application/json")
+            .headers(self.common_headers())
             .send()
             .await?;
         Ok(response)
     }
-    pub async fn patch_data(
+    pub async fn patch_data<T>(
         &self,
         url: &str,
-        data: Column,
-    ) -> Result<reqwest::Response, reqwest::Error> {
+        data: T,
+    ) -> Result<reqwest::Response, reqwest::Error>
+    where
+        T: serde::Serialize,
+    {
         let response = self
             .client
             .patch(url)
             .json(&data)
-            .header(AUTHORIZATION, format!("Bearer {}", self.token))
-            .header(CONTENT_TYPE, "application/json")
-            .header(ACCEPT, "application/json")
+            .headers(self.common_headers())
             .send()
             .await?;
         Ok(response)
