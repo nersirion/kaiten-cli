@@ -1,9 +1,12 @@
-use crate::command::{CardOptions, Commands};
+use crate::command::{CardCommands, Commands};
 use crate::models::common::{COLUMNS, USERS};
 use crate::models::{Column, User};
 use reqwest;
 use reqwest::header::{HeaderValue, ACCEPT, AUTHORIZATION, CONTENT_TYPE};
 use std::env;
+
+const BOARD_ID: &str = "96239";
+const SPACE_ID: &str = "38223";
 
 pub struct ApiClient {
     client: reqwest::Client,
@@ -24,7 +27,7 @@ impl ApiClient {
     }
 
     pub async fn init(&self) -> Result<(), Box<dyn std::error::Error>> {
-        let url = format!("{}/boards/96239/columns/", self.base_api_url);
+        let url = format!("boards/{}/columns/", BOARD_ID);
         let response = self.get_data(url.as_str()).await?;
         let json: Vec<Column> = response.json().await?;
         for d in json.iter() {
@@ -36,7 +39,7 @@ impl ApiClient {
             };
             COLUMNS.lock().unwrap().insert(title.to_string(), column);
         }
-        let url = format!("{}/users/", self.base_api_url);
+        let url = String::from("users/");
         let response = self.get_data(url.as_str()).await?;
         let json: Vec<User> = response.json().await?;
         for d in json.iter() {
@@ -57,28 +60,9 @@ impl ApiClient {
         headers
     }
 
-    pub fn get_url(&self, cmd: &Commands) -> String {
-        match cmd {
-            Commands::Card { options } => match options {
-                CardOptions::Ls {} | CardOptions::New {} => {
-                    format!("{}/cards?space_id=38223", self.base_api_url,)
-                }
-                CardOptions::Get { card_id }
-                | CardOptions::Edit { card_id }
-                | CardOptions::Mv { card_id } => {
-                    format!("{}/cards/{}", self.base_api_url, card_id)
-                }
-            },
-            Commands::Columns {} => {
-                format!("{}/boards/96239/columns/", self.base_api_url)
-            }
-            Commands::Users {} => {
-                format!("{}/users/", self.base_api_url)
-            }
-        }
-    }
 
-    pub async fn get_data(&self, url: &str) -> Result<reqwest::Response, reqwest::Error> {
+    pub async fn get_data(&self, api_url: &str) -> Result<reqwest::Response, reqwest::Error> {
+        let url = format!("{}/{}", self.base_api_url, api_url);
         let response = self
             .client
             .get(url)
@@ -89,12 +73,13 @@ impl ApiClient {
     }
     pub async fn patch_data<T>(
         &self,
-        url: &str,
+        api_url: &str,
         data: T,
     ) -> Result<reqwest::Response, reqwest::Error>
     where
         T: serde::Serialize,
     {
+        let url = format!("{}/{}", self.base_api_url, api_url);
         let response = self
             .client
             .patch(url)

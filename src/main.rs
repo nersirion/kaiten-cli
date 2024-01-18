@@ -12,9 +12,10 @@ use crate::api::ApiClient;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let client = ApiClient::default();
     let cli = Cli::parse();
-    let url = client.get_url(&cli.command);
+    let api_url = cli.get_url();
+    println!("{}", api_url);
     client.init().await?;
-    let response = client.get_data(&url).await?;
+    let response = client.get_data(&api_url).await?;
     let table = cli.get_table(response).await?;
     let mut skin = MadSkin::default();
     // println!("{}", skin.inline(&table));

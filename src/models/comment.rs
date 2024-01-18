@@ -2,12 +2,20 @@ use serde_derive::{Deserialize, Serialize};
 use tabled::Tabled;
 use crate::models::User;
 
-#[derive(Serialize, Deserialize, Debug, Tabled)]
+#[derive(Debug, Serialize, Deserialize, Tabled)]
 pub struct Comment {
-    #[tabled(skip)]
+    created: String,
     id: u32,
     text: String,
     #[tabled(skip)]
-    created: String,
-    user: User
+    edited: bool,
+    card_id: u32,
+    #[tabled(skip)]
+    author_id: u32,
+    author: User,
+}
+impl std::fmt::Display for Comment {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{}", self.text)
+    }
 }

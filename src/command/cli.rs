@@ -4,6 +4,9 @@ use clap::{Args, Parser, Subcommand};
 use tabled::{settings::{object::Rows, Width, Modify, Style}, Table };
 use super::card::{Card, CardCommands};
 
+const BOARD_ID: &str = "96239";
+const SPACE_ID: u32 = 38223;
+
 #[derive(Parser)]
 #[clap(author, version, about, long_about = None)]
 #[clap(propagate_version = true)]
@@ -20,6 +23,20 @@ pub enum Commands {
 }
 
 impl Cli {
+    pub fn get_url(&self) -> String {
+        match &self.command {
+            Commands::Card (card) => {
+                card.get_url()
+            }
+            Commands::Columns {} => {
+                format!("boards/{}/columns/", BOARD_ID)
+            }
+            Commands::Users {} => {
+                format!("spaces/{}/users/", SPACE_ID)
+            }
+            _ => String::new() 
+        }
+    }
     pub async fn get_table(
         &self,
         response: reqwest::Response,
@@ -27,13 +44,13 @@ impl Cli {
     
         let info = match &self.command {
             Commands::Card ( card ) => {
-                match card.command {
+                match &card.command {
                     CardCommands::Get { card_id: _ } => {
                         let json: ModelsCard = response.json().await?;
                         // card.get_table(vec![json])
                         json.to_string()
                     }
-                    CardCommands::Ls {} => {
+                    CardCommands::Ls (arg) => {
                         let json: Vec<ModelsCard> = response.json().await?;
                         card.get_table(json)
                     }

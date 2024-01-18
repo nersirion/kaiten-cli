@@ -8,8 +8,7 @@ use crate::models::common::{COLUMNS, USERS};
 
 #[derive(Serialize, Deserialize, Debug, Tabled)]
 pub struct Card {
-    #[tabled(display_with = "display_id")]
-    id: Option<u32>,
+    id: u32,
     pub title: String,
     pub column: Column,
     lane: Lane,
@@ -35,7 +34,7 @@ pub struct Card {
 impl Card {
     fn new() -> Card {
         Card {
-            id: None,
+            id: 1,
             title: "Title".to_string(),
             column: Column {
                 id: 0,
@@ -187,15 +186,6 @@ impl Card {
     // pub fn from_string(text: String) -> Self {
     //
     // }
-}
-
-fn display_id(id: &Option<u32>) -> String {
-    match id {
-        Some(id) => {
-            format!("{}", id)
-        }
-        None => format!(""),
-    }
 }
 
 fn display_description(o: &Option<String>) -> String {
