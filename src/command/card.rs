@@ -1,4 +1,5 @@
 use crate::models::Card as ModelsCard;
+use crate::models::common::{USERS, COLUMNS};
 use clap::{Args, Subcommand};
 use tabled::{
     settings::{object::Rows, Modify, Style, Width},
@@ -286,20 +287,44 @@ impl Card {
 
         }
     }
-    pub fn get_table(&self, json: Vec<ModelsCard>) -> String {
-        match &self.command {
-            CardCommands::Ls(_) => {
-                let mut filter_cards: Vec<&ModelsCard> = json
-                    .iter()
-                    .filter(|card| card.column.title != "Done" && !card.archived)
-                    .collect();
-                filter_cards.sort_by(|a, b| a.sort_order.partial_cmp(&b.sort_order).unwrap());
-                Table::new(filter_cards)
+    pub async fn get_table(&self, response: reqwest::Response) ->Result<String, Box<dyn std::error::Error>>{
+        let table = match &self.command {
+            CardCommands::Get { card_id: _ } => {
+            let card: ModelsCard = response.json().await?;
+                // card.get_table(vec![json])
+                card.to_string()
+            }
+            CardCommands::Ls (_) => {
+                let mut cards: Vec<ModelsCard> = response.json().await?;
+                cards.sort_by(|a, b| a.sort_order.partial_cmp(&b.sort_order).unwrap());
+                Table::new(cards)
                     .with(Style::markdown())
                     .with(Modify::new(Rows::new(0..)).with(Width::wrap(70)))
                     .to_string()
             }
-            _ => Table::new(vec![""]).to_string(),
-        }
+
+            CardCommands::New{} => {
+                ModelsCard::from_string()
+            }
+
+            CardCommands::Mv { card_id: _ } => {
+                let mut card: ModelsCard = response.json().await?;
+                let columns = COLUMNS.lock().unwrap();
+                let mut columns_vec = Vec::from_iter(columns.iter().map(|(_, column)| column));
+                columns_vec.sort_by(|a, b| a.sort_order.partial_cmp(&b.sort_order).unwrap());
+                let idx = columns_vec.iter().position(|&x| x.title == card.column.title).unwrap();
+                if idx < columns_vec.len() {
+                    card.column = columns_vec[idx+1].clone();
+                }
+                println!("{:?}", card);
+                // let m = M{column_id: columns_vec[idx+1].id};
+                // let res = patch_data(&client, url.as_str(), m).await?;
+                // println!("{:?}", res);
+                String::from("")
+
+            }
+            _ => String::from(""),
+        };
+        Ok(table)
     }
 }
