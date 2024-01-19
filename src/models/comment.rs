@@ -4,7 +4,7 @@ use crate::models::User;
 
 #[derive(Debug, Serialize, Deserialize, Tabled)]
 pub struct Comment {
-    created: String,
+    pub created: String,
     id: u32,
     text: String,
     #[tabled(skip)]

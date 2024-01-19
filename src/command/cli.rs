@@ -1,8 +1,9 @@
-use crate::models::{User, Card as ModelsCard};
+use crate::models::{User, Card as ModelsCard, Comment as ModelsComment};
 use crate::models::common::{USERS, COLUMNS};
 use clap::{Args, Parser, Subcommand};
 use tabled::{settings::{object::Rows, Width, Modify, Style}, Table };
 use super::card::{Card, CardCommands};
+use super::comment::{Comment, CommentCommands};
 
 const BOARD_ID: &str = "96239";
 const SPACE_ID: u32 = 38223;
@@ -17,15 +18,16 @@ pub struct Cli {
 
 #[derive(Subcommand)]
 pub enum Commands {
-    Card(Card),
+    Cards(Card),
     Columns {},
     Users {},
+    Comments(Comment)
 }
 
 impl Cli {
     pub fn get_url(&self) -> String {
         match &self.command {
-            Commands::Card (card) => {
+            Commands::Cards (card) => {
                 card.get_url()
             }
             Commands::Columns {} => {
@@ -34,7 +36,9 @@ impl Cli {
             Commands::Users {} => {
                 format!("spaces/{}/users/", SPACE_ID)
             }
-            _ => String::new() 
+            Commands::Comments(comment) => {
+                comment.get_url()
+            }
         }
     }
     pub async fn get_table(
@@ -43,7 +47,7 @@ impl Cli {
     ) -> Result<String, Box<dyn std::error::Error>> {
     
         let info = match &self.command {
-            Commands::Card ( card ) => {
+            Commands::Cards ( card ) => {
                 match &card.command {
                     CardCommands::Get { card_id: _ } => {
                         let json: ModelsCard = response.json().await?;
@@ -94,6 +98,10 @@ impl Cli {
                 // let users = Vec::from_iter(USERS.lock().unwrap().iter());
                 Table::new(users_vec).to_string()
             }
+            Commands::Comments(comment) => {
+                comment.get_table(response).await?
+            }
+            _ => String::new()
         };
         Ok(info)
     }

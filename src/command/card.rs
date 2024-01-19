@@ -8,6 +8,12 @@ use tabled::{
 const BOARD_ID: &str = "96239";
 const SPACE_ID: u32 = 38223;
 
+#[derive(Args)]
+pub struct Card {
+    #[command(subcommand)]
+    pub command: CardCommands,
+}
+
 #[derive(Subcommand)]
 pub enum CardCommands {
     /// print all cards for user
@@ -265,11 +271,6 @@ fn validate_iso8601(s: &str) -> Result<String, String> {
     Ok(s.to_string())
 }
 
-#[derive(Args)]
-pub struct Card {
-    #[command(subcommand)]
-    pub command: CardCommands,
-}
 impl Card {
     pub fn get_url(&self) -> String {
         match &self.command {
