@@ -12,6 +12,7 @@ pub use user::User;
 pub use lane::Lane;
 pub use checklist::Checklist;
 pub use checklistitem::ChecklistItem;
+pub use common::Info;
 
 mod blocker;
 mod board;

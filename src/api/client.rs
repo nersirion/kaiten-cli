@@ -26,29 +26,6 @@ impl ApiClient {
         }
     }
 
-    pub async fn init(&self) -> Result<(), Box<dyn std::error::Error>> {
-        let url = format!("boards/{}/columns/", BOARD_ID);
-        let response = self.get_data(url.as_str()).await?;
-        let json: Vec<Column> = response.json().await?;
-        for d in json.iter() {
-            let title = d.title.as_str();
-            let column = Column {
-                title: d.title.to_string(),
-                id: d.id,
-                sort_order: d.sort_order,
-            };
-            COLUMNS.lock().unwrap().insert(title.to_string(), column);
-        }
-        let url = String::from("users/");
-        let response = self.get_data(url.as_str()).await?;
-        let json: Vec<User> = response.json().await?;
-        for d in json.iter() {
-            let author = d.username.as_str();
-            USERS.lock().unwrap().insert(author.to_string(), d.id);
-        }
-        Ok(())
-    }
-
     fn common_headers(&self) -> reqwest::header::HeaderMap {
         let mut headers = reqwest::header::HeaderMap::new();
         headers.insert(
@@ -63,6 +40,7 @@ impl ApiClient {
 
     pub async fn get_data(&self, api_url: &str) -> Result<reqwest::Response, reqwest::Error> {
         let url = format!("{}/{}", self.base_api_url, api_url);
+        println!("{}", url);
         let response = self
             .client
             .get(url)

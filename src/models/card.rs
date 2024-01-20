@@ -36,19 +36,9 @@ impl Card {
         Card {
             id: 1,
             title: "Title".to_string(),
-            column: Column {
-                id: 0,
-                title: "Test".to_string(),
-                sort_order: 0.0,
-            },
-            lane: Lane {
-                id: 0,
-                title: "test".to_string(),
-            },
-            r#type: CardType {
-                name: "Test".to_string(),
-                letter: "Test".to_string(),
-            },
+            column: Column::new(),
+            lane: Lane::new() ,
+            r#type: CardType::new(),
             tags: None,
             sort_order: 0.0,
             members: None,
@@ -122,31 +112,21 @@ impl Card {
         let lane_idx = card_text.find("## Lane:").unwrap();
         let column_idx = card_text.find("## Column:").unwrap();
         let lane = &card_text[lane_idx + "## Lane:".len()..column_idx];
-        Lane {
-            id: 0,
-            title: lane.to_string(),
-        }
+        Lane::new()
     }
 
     fn get_column(card_text: &str) -> Column {
         let column_idx = card_text.find("## Column:").unwrap();
         let card_type_idx = card_text.find("## Type:").unwrap();
         let column = &card_text[column_idx + "## Column:".len()..card_type_idx];
-        Column {
-            id: 0,
-            title: column.to_string(),
-            sort_order: 0.0,
-        }
+        Column::new()
     }
 
     fn get_type(card_text: &str) -> CardType {
         let card_type_idx = card_text.find("## Type:").unwrap();
         let checklists_idx = card_text.find("## Checklists:").unwrap();
         let card_type = &card_text[card_type_idx + "## Type:".len()..checklists_idx];
-        CardType {
-            name: card_type.to_string(),
-            letter: "".to_string(),
-        }
+        CardType::new()
     }
 
     fn get_checklists(card_text: &str) -> Option<Vec<Checklist>> {
@@ -200,7 +180,7 @@ fn display_description(o: &Option<String>) -> String {
 fn display_members(o: &Option<Vec<User>>) -> String {
     match o {
         Some(members) => {
-            let mems: Vec<&str> = members.into_iter().map(|m| m.username.as_str()).collect();
+            let mems: Vec<&str> = members.into_iter().filter(|m| m.r#type.is_some() && m.r#type.unwrap() == 2).map(|m| m.username.as_str()).collect();
             format!("{}", mems.join(",\n"))
         }
         None => format!(""),
