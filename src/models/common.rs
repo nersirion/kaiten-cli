@@ -1,5 +1,4 @@
-use super::{Board, CardType, Column, Space, Tag, User};
-use lazy_static::lazy_static;
+use super::{Board, CardType, Column, Space, Tag, User, Config};
 use once_cell::sync::OnceCell;
 use serde_derive::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -7,12 +6,12 @@ use std::env;
 use std::fs;
 use std::io;
 use std::path::Path;
+use lazy_static::lazy_static;
 use std::sync::Mutex;
 
 lazy_static! {
-    pub static ref COLUMNS: Mutex<HashMap<String, Column>> = Mutex::new(HashMap::new());
-    pub static ref USERS: Mutex<HashMap<String, u32>> = Mutex::new(HashMap::new());
     pub static ref INFO: OnceCell<Info> = OnceCell::new();
+    pub static ref CONFIG: Mutex<Config> = Mutex::new(Config::new());
 }
 
 #[derive(Serialize, Deserialize, Debug)]

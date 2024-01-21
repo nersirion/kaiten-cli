@@ -1,12 +1,6 @@
-use crate::command::{CardCommands, Commands};
-use crate::models::common::{COLUMNS, USERS};
-use crate::models::{Column, User};
 use reqwest;
 use reqwest::header::{HeaderValue, ACCEPT, AUTHORIZATION, CONTENT_TYPE};
 use std::env;
-
-const BOARD_ID: &str = "96239";
-const SPACE_ID: &str = "38223";
 
 pub struct ApiClient {
     client: reqwest::Client,

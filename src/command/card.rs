@@ -1,5 +1,4 @@
 use crate::models::Card as ModelsCard;
-use crate::models::common::{USERS, COLUMNS};
 use clap::{Args, Subcommand};
 use tabled::{
     settings::{object::Rows, Modify, Style, Width},
@@ -38,7 +37,7 @@ pub struct Ls {
     #[arg(short, long, default_value = "1")]
     condition: u8,
     /// Search by states filter, comma separated. 1-queued, 2-inProgress, 3-done.
-    #[arg(short, long, default_value = "1,2")]
+    #[arg(short='S', long, default_value = "1,2")]
     states: String,
     #[arg(short, long)]
     properties_id: Option<u32>,
@@ -319,14 +318,13 @@ impl Card {
 
             CardCommands::Mv { card_id: _ } => {
                 let mut card: ModelsCard = response.json().await?;
-                let columns = COLUMNS.lock().unwrap();
-                let mut columns_vec = Vec::from_iter(columns.iter().map(|(_, column)| column));
-                columns_vec.sort_by(|a, b| a.sort_order.partial_cmp(&b.sort_order).unwrap());
-                let idx = columns_vec.iter().position(|&x| x.title == card.column.title).unwrap();
-                if idx < columns_vec.len() {
-                    card.column = columns_vec[idx+1].clone();
-                }
-                println!("{:?}", card);
+                // let mut columns_vec = Vec::from_iter(columns.iter().map(|(_, column)| column));
+                // columns_vec.sort_by(|a, b| a.sort_order.partial_cmp(&b.sort_order).unwrap());
+                // let idx = columns_vec.iter().position(|&x| x.title == card.column.title).unwrap();
+                // if idx < columns_vec.len() {
+                //     card.column = columns_vec[idx+1].clone();
+                // }
+                // println!("{:?}", card);
                 // let m = M{column_id: columns_vec[idx+1].id};
                 // let res = patch_data(&client, url.as_str(), m).await?;
                 // println!("{:?}", res);

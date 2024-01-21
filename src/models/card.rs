@@ -5,7 +5,6 @@ use std::{fs::File, process::Command};
 use tabled::Tabled;
 use tempfile::Builder;
 use crate::models::*;
-use crate::models::common::{COLUMNS, USERS};
 
 #[derive(Serialize, Deserialize, Debug, Tabled)]
 pub struct Card {
@@ -27,11 +26,14 @@ pub struct Card {
     description: Option<String>,
     #[tabled(skip)]
     pub archived: bool,
-    // #[header(hidden)]
     #[tabled(skip)]
     created: String,
     #[tabled(skip)]
     checklists: Option<Vec<Checklist>>,
+    #[tabled(skip)]
+    parents: Option<Vec<Card>>,
+    #[tabled(skip)]
+    childrens: Option<Vec<Card>>
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -57,14 +59,17 @@ impl Card {
             archived: false,
             created: "Test".to_string(),
             checklists: None,
+            parents: None,
+            childrens: None,
+
         }
     }
     pub fn to_string(&self) -> String {
         let title = format!("# Title: {}\n\n", self.title);
         let lane = format!("## Lane: {}\n", self.lane);
-        let columns = COLUMNS.lock().unwrap();
-        let cs: Vec<String> = Vec::from_iter(columns.iter().map(|(k, _)| k.to_string()));
-        let cols = format!("<!-- {} -->\n", cs.join("|"));
+        // let columns = Vec::new();
+        // let cs: Vec<String> = Vec::from_iter(columns.iter().map(|(k, _)| k.to_string()));
+        // let cols = format!("<!-- {} -->\n", cs.join("|"));
         let column = format!("## Column: {}\n", self.column);
         let card_type = format!("## Type: {}\n", self.r#type);
         let tags = format!("## Tags: {}\n", display_tags(&self.tags));
@@ -82,7 +87,7 @@ impl Card {
         let checklists_str = format!("## Checklists:\n {}\n", checklists.join("\n"));
         let text = format!(
             "{}{}{}{}{}{}{}{}",
-            title, lane, cols, column, card_type, tags, desc, checklists_str
+            title, lane, column, column, card_type, tags, desc, checklists_str
         );
         text
     }
