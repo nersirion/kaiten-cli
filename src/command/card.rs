@@ -4,9 +4,8 @@ use tabled::{
     settings::{object::Rows, Modify, Style, Width},
     Table,
 };
+use crate::models::common::CONFIG;
 
-const BOARD_ID: &str = "96239";
-const SPACE_ID: u32 = 38223;
 
 #[derive(Args)]
 pub struct Card {
@@ -30,9 +29,6 @@ pub enum CardCommands {
 
 #[derive(Args)]
 pub struct Ls {
-    /// Filter by board id.
-    #[arg(short, long)]
-    board_id: Option<u32>,
     /// Filter by condition: 1 - on board, 2 - archived.
     #[arg(short, long, default_value = "1")]
     condition: u8,
@@ -106,9 +102,6 @@ pub struct Ls {
     /// Search by responsible ids filter, comma separated.
     #[arg(long)]
     responsible_ids: Option<String>,
-    /// Filter by space id.
-    #[arg(long)]
-    space_id: Option<u32>,
     /// Maximum amount of cards in response.
     #[arg(long)]
     limit: Option<u32>,
@@ -153,7 +146,8 @@ pub struct Ls {
 impl Ls {
     pub fn get_url(&self) -> String {
         let mut url = String::from("cards?");
-        if let Some(board_id) = self.board_id {
+        let config = CONFIG.lock().unwrap();
+        if let Some(board_id) = config.get_board_id() {
             url.push_str(&format!("board_id={}&", board_id));
         }
         url.push_str(&format!("condition={}&", self.condition));
@@ -202,13 +196,13 @@ impl Ls {
         if let Some(type_ids) = &self.type_ids {
             url.push_str(&format!("type_ids={}&", type_ids));
         }
-        if let Some(exclude_board_ids) = &self.exclude_board_ids {
+        if let Some(exclude_board_ids) = config.get_exclude_board_ids() {
             url.push_str(&format!("exclude_board_ids={}&", exclude_board_ids));
         }
-        if let Some(exclude_lane_ids) = &self.exclude_lane_ids {
+        if let Some(exclude_lane_ids) = config.get_exclude_lane_ids() {
             url.push_str(&format!("exclude_lane_ids={}&", exclude_lane_ids));
         }
-        if let Some(exclude_column_ids) = &self.exclude_column_ids {
+        if let Some(exclude_column_ids) = config.get_exclude_column_ids() {
             url.push_str(&format!("exclude_column_ids={}&", exclude_column_ids));
         }
         if let Some(column_ids) = &self.column_ids {
@@ -223,7 +217,9 @@ impl Ls {
         if let Some(responsible_ids) = &self.responsible_ids {
             url.push_str(&format!("responsible_ids={}&", responsible_ids));
         }
-        url.push_str(&format!("space_id={}&", &self.space_id.unwrap_or(SPACE_ID)));
+        if let Some(space_id) = config.get_space_id() {
+            url.push_str(&format!("space_id={}&", space_id));
+        }
         if let Some(limit) = self.limit {
             url.push_str(&format!("limit={}&", limit));
         }

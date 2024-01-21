@@ -31,9 +31,18 @@ pub struct Card {
     #[tabled(skip)]
     checklists: Option<Vec<Checklist>>,
     #[tabled(skip)]
-    parents: Option<Vec<Card>>,
+    parents: Option<Vec<RelatedCard>>,
     #[tabled(skip)]
-    childrens: Option<Vec<Card>>
+    childrens: Option<Vec<RelatedCard>>
+}
+
+#[derive(Serialize, Deserialize, Debug, Tabled)]
+pub struct RelatedCard {
+    id: u32,
+    title: String,
+    board_id: u32,
+    #[tabled(rename = "type")]
+    r#type: CardType
 }
 
 #[derive(Debug, Serialize, Deserialize)]

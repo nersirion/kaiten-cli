@@ -10,8 +10,8 @@ pub struct Column {
     pub sort_order: f32,
     #[tabled(skip)]
     column_id: Option<u32>,
-    #[tabled(skip)]
-    subcolumns: Option<Vec<Column>>
+    #[tabled(display_with="Column::dispay_subcolumns")]
+    subcolumns: Option<Vec<Column>>,
 }
 impl std::fmt::Display for Column {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -28,6 +28,20 @@ impl Column {
             column_id: None,
             subcolumns: None,
             sort_order: 0.0,
+        }
+    }
+    fn dispay_subcolumns(subcolumns: &Option<Vec<Column>>) -> String {
+        match subcolumns {
+            Some(subcolumns) => {
+                let mut scols = subcolumns.clone();
+                scols.sort_by(|a, b| a.sort_order.partial_cmp(&b.sort_order).unwrap());
+                let str_cols: Vec<String> = scols
+                    .iter()
+                    .map(|c|  format!("{}-{}", c.title, c.id))
+                    .collect();
+                format!("{}", str_cols.join(", "))
+            }
+            None => format!(""),
         }
     }
 }

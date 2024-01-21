@@ -1,4 +1,5 @@
-use super::{Board, CardType, Column, Space, Tag, User, Config};
+use super::{Board, CardType, Column, Config, Space, Tag, User};
+use lazy_static::lazy_static;
 use once_cell::sync::OnceCell;
 use serde_derive::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -6,7 +7,6 @@ use std::env;
 use std::fs;
 use std::io;
 use std::path::Path;
-use lazy_static::lazy_static;
 use std::sync::Mutex;
 
 lazy_static! {
@@ -85,11 +85,18 @@ impl Info {
             }
         }
     }
-    pub fn get_columns(&self) -> Vec<Column> {
+    pub fn get_columns(&self, board_id: Option<u32>) -> Vec<Column> {
         let mut columns = Vec::new();
-        for board in self.boards.values() {
-            columns.extend(board.get_columns())
+        if let Some(board_id) = board_id {
+            if let Some(board) = self.boards.get(&board_id) {
+                columns.extend(board.get_columns())
+            }
+        } else {
+            for board in self.boards.values() {
+                columns.extend(board.get_columns())
+            }
         }
+        columns.sort_by(|a, b| a.sort_order.partial_cmp(&b.sort_order).unwrap());
         columns
     }
 
@@ -99,10 +106,16 @@ impl Info {
     pub fn get_card_types(&self) -> &Vec<CardType> {
         &self.card_types
     }
-    pub fn get_users(&self) -> Vec<User> {
+    pub fn get_users(&self, space_id: Option<u32>) -> Vec<User> {
         let mut users: Vec<User> = Vec::new();
-        for space in self.spaces.values() {
-            users.extend(space.get_users())
+        if let Some(space_id) = space_id {
+            if let Some(space) = self.spaces.get(&space_id) {
+                users.extend(space.get_users())
+            }
+        } else {
+            for space in self.spaces.values() {
+                users.extend(space.get_users())
+            }
         }
         users
     }

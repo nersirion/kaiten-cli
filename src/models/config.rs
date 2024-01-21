@@ -1,6 +1,7 @@
 use std::path::Path;
 use std::fs;
 use std::io;
+use std::env;
 use serde_derive::{Deserialize, Serialize};
 use super::common::CONFIG;
 
@@ -68,6 +69,22 @@ impl Config {
         }
     }
 
+    pub fn get_space_id(&self) -> Option<u32> {
+        self.space_id
+    }
+    pub fn get_board_id(&self) -> Option<u32> {
+        self.board_id
+    }
+    pub fn get_exclude_board_ids(&self) -> Option<&String> {
+        self.exclude_board_ids.as_ref()
+    }
+    pub fn get_exclude_column_ids(&self) -> Option<&String> {
+        self.exclude_column_ids.as_ref()
+    }
+    pub fn get_exclude_lane_ids(&self) -> Option<&String> {
+        self.exclude_lane_ids.as_ref()
+    }
+
     pub fn set_space_id(&mut self, space_id: u32) {
         self.space_id = Some(space_id)
     }
@@ -82,5 +99,22 @@ impl Config {
     }
     pub fn set_exclude_lane_ids(&mut self, exclude_lane_ids: String) {
         self.exclude_lane_ids = Some(exclude_lane_ids)
+    }
+
+    pub fn update(&mut self, space_id: Option<u32>, board_id: Option<u32>) {
+        if let Some(space_id) = space_id {
+            self.set_space_id(space_id)
+        } else if let Ok(space_id) = env::var("SPACE_ID") {
+            if let Ok(space_id) = space_id.parse::<u32>() {
+            self.set_space_id(space_id)
+            }
+        }
+        if let Some(board_id) = board_id {
+            self.set_space_id(board_id)
+        } else if let Ok(board_id) = env::var("SPACE_ID") {
+            if let Ok(board_id) = board_id.parse::<u32>() {
+            self.set_space_id(board_id)
+            }
+        }
     }
 }
