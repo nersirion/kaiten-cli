@@ -35,6 +35,7 @@ pub struct Card {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[serde(untagged)]
 enum PropertiesValue {
     S(String),
     V(Vec<u32>)
@@ -171,6 +172,37 @@ impl Card {
             }
         };
         tags
+    }
+
+    pub fn is_property(&self, property_id: u32) -> bool {
+        if let Some(properties) = &self.properties {
+            let key = format!("id_{}", property_id);
+            properties.contains_key(&key)
+        } else {
+            false
+        }
+    }
+
+    pub fn is_property_value(&self, property_value_id: u32) -> bool {
+        if let Some(properties) = &self.properties {
+            for item in properties.values() {
+                let contains = match item {
+                        PropertiesValue::S(s) => {
+                            let string_id = format!("{}", property_value_id);
+                            string_id.eq(s)
+                        }
+                        PropertiesValue::V(v) => {
+                            v.contains(&property_value_id)
+                        }
+                    };
+                if contains {
+                    return true
+                }
+            }
+            false
+        } else {
+            false
+        }
     }
 
     // pub fn from_string(text: String) -> Self {

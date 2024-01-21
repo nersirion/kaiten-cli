@@ -48,6 +48,11 @@ impl Cli {
                 let tags = INFO.get().unwrap().get_tags();
                 Table::new(tags).with(Style::markdown()).to_string()
             }
+            Commands::Cards(card) => {
+                let api_url = card.get_url();
+                let response = client.get_data(&api_url).await?;
+                card.get_table(response).await?
+            }
             _ => String::new()
         };
         Ok(result)

@@ -40,6 +40,10 @@ pub struct Ls {
     /// Search by states filter, comma separated. 1-queued, 2-inProgress, 3-done.
     #[arg(short, long, default_value = "1,2")]
     states: String,
+    #[arg(short, long)]
+    properties_id: Option<u32>,
+    #[arg(short='P', long)]
+    properties_value_id: Option<u32>,
     /// Created before search filter (format: ISO 8601).
     #[arg(long, value_parser = validate_iso8601)]
     created_before: Option<String>,
@@ -294,8 +298,14 @@ impl Card {
                 // card.get_table(vec![json])
                 card.to_string()
             }
-            CardCommands::Ls (_) => {
+            CardCommands::Ls (ls) => {
                 let mut cards: Vec<ModelsCard> = response.json().await?;
+                if let Some(p_id) = ls.properties_id {
+                    cards = cards.into_iter().filter(|c| c.is_property(p_id)).collect()
+                }
+                if let Some(pv_id) = ls.properties_value_id {
+                    cards = cards.into_iter().filter(|c| c.is_property_value(pv_id)).collect()
+                }
                 cards.sort_by(|a, b| a.sort_order.partial_cmp(&b.sort_order).unwrap());
                 Table::new(cards)
                     .with(Style::markdown())
