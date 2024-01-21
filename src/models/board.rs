@@ -16,4 +16,7 @@ impl Board {
     pub fn get_id(&self) -> u32 {
         self.id
     }
+    pub fn get_columns(&self) -> Vec<Column> {
+        self.columns.as_ref().cloned().unwrap_or(vec![])
+    }
 }

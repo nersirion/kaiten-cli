@@ -5,12 +5,10 @@ mod api;
 use crate::command::Cli;
 use clap::Parser;
 use termimad::{MadSkin, rgb};
-use crate::api::ApiClient;
 
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let client = ApiClient::default();
     let cli = Cli::parse();
     let result = match cli.execute().await {
         Ok(result) => {result},
@@ -19,14 +17,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             std::process::exit(1)
         }
     };
-    let api_url = cli.get_url();
-    println!("{}", api_url);
-    let response = client.get_data(&api_url).await?;
-    let table = cli.get_table(response).await?;
     let mut skin = MadSkin::default();
     // println!("{}", skin.inline(&table));
     skin.set_headers_fg(rgb(255, 187, 0));
-    skin.print_text(&table);
+    skin.print_text(&result);
     // println!("{}", skin.inline(&table));
     Ok(())
 }

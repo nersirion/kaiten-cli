@@ -1,7 +1,7 @@
 
 use serde_derive::{Deserialize, Serialize};
 use tabled::Tabled;
-#[derive(Serialize, Deserialize, Debug, Tabled)]
+#[derive(Serialize, Deserialize, Debug, Tabled, Clone)]
 pub struct User{
     pub id: u32,
     pub username: String,

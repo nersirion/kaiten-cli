@@ -1,13 +1,13 @@
+use super::{Board, CardType, Column, Space, Tag, User};
 use lazy_static::lazy_static;
-use std::sync::Mutex;
-use std::collections::HashMap;
-use super::{Column, Space, Tag, CardType};
+use once_cell::sync::OnceCell;
 use serde_derive::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::env;
 use std::fs;
 use std::io;
 use std::path::Path;
-use once_cell::sync::OnceCell;
-use std::env;
+use std::sync::Mutex;
 
 lazy_static! {
     pub static ref COLUMNS: Mutex<HashMap<String, Column>> = Mutex::new(HashMap::new());
@@ -17,20 +17,25 @@ lazy_static! {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Info {
-    spaces: Vec<Space>,
+    spaces: HashMap<u32, Space>,
+    boards: HashMap<u32, Board>,
     tags: Vec<Tag>,
-    card_types: Vec<CardType>
+    card_types: Vec<CardType>,
 }
 
 impl Info {
-    pub fn from(spaces: Vec<Space>, tags: Vec<Tag>, card_types: Vec<CardType>) -> Self {
+    pub fn from(
+        spaces: HashMap<u32, Space>,
+        boards: HashMap<u32, Board>,
+        tags: Vec<Tag>,
+        card_types: Vec<CardType>,
+    ) -> Self {
         Self {
             spaces,
+            boards,
             tags,
-            card_types
+            card_types,
         }
-
-
     }
     pub fn load() -> Result<Self, io::Error> {
         let file = format!("{}/.config/kaiten-cli/entities.yaml", env!["HOME"]);
@@ -38,7 +43,10 @@ impl Info {
         if !file_path.exists() {
             return Err(io::Error::new(
                 io::ErrorKind::NotFound,
-                format!("File {:?} not exist. Please run `kaiten-cli init`", file_path),
+                format!(
+                    "File {:?} not exist. Please run `kaiten-cli init`",
+                    file_path
+                ),
             ));
         }
         let content = fs::read_to_string(file_path)?;
@@ -51,7 +59,6 @@ impl Info {
         })?;
 
         Ok(info)
-
     }
 
     pub fn save(&self) -> io::Result<()> {
@@ -79,5 +86,25 @@ impl Info {
             }
         }
     }
-}
+    pub fn get_columns(&self) -> Vec<Column> {
+        let mut columns = Vec::new();
+        for board in self.boards.values() {
+            columns.extend(board.get_columns())
+        }
+        columns
+    }
 
+    pub fn get_tags(&self) -> &Vec<Tag> {
+        &self.tags
+    }
+    pub fn get_card_types(&self) -> &Vec<CardType> {
+        &self.card_types
+    }
+    pub fn get_users(&self) -> Vec<User> {
+        let mut users: Vec<User> = Vec::new();
+        for space in self.spaces.values() {
+            users.extend(space.get_users())
+        }
+        users
+    }
+}

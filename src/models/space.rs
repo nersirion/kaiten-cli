@@ -1,7 +1,7 @@
 
 use serde_derive::{Deserialize, Serialize};
 use tabled::Tabled;
-use super::{User, Board};
+use super::{User, Board, Column};
 #[derive(Serialize, Deserialize, Debug, Tabled)]
 pub struct Space{
     id: u32,
@@ -24,5 +24,18 @@ impl Space {
     }
     pub fn set_boards(&mut self, boards: Vec<Board>) {
         self.boards.replace(boards);
+    }
+    pub fn get_users(&self) -> Vec<User> {
+        self.users.as_ref().cloned().unwrap_or(Vec::new())
+    }
+    pub fn get_columns(&self) -> Vec<Column> {
+        let mut columns = Vec::new();
+        if let Some(boards) = &self.boards {
+            for board in boards.iter() {
+                columns.extend(board.get_columns())
+        }
+        }
+        columns
+
     }
 }

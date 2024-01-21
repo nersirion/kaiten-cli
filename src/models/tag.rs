@@ -1,16 +1,17 @@
 
+use tabled::Tabled;
 use serde_derive::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Tabled)]
 pub struct Tag {
-    id: Option<u32>,
+    id: u32,
     pub name: String,
 }
 
 impl Tag {
     pub fn from_string(text: String) -> Self {
         Tag {
-            id: None,
+            id: 0,
             name: text
         }
     }

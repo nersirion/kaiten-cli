@@ -1,7 +1,7 @@
 use super::card::Card;
 use super::comment::Comment;
-use crate::models::common::{COLUMNS, USERS};
-use crate::models::User;
+use crate::models::common::{COLUMNS, USERS, INFO};
+use crate::models::{User, Info};
 use clap::{Parser, Subcommand};
 use tabled::{settings::Style, Table};
 use super::Init;
@@ -16,6 +16,8 @@ const SPACE_ID: u32 = 38223;
 pub struct Cli {
     #[clap(subcommand)]
     pub command: Commands,
+    #[arg(long, global=true)]
+    space_id: Option<u32>
 }
 
 #[derive(Subcommand)]
@@ -23,6 +25,7 @@ pub enum Commands {
     Cards(Card),
     Columns {},
     Users {},
+    Tags{},
     Comments(Comment),
     /// Download all info for long-term entity
     Init(Init),
@@ -35,9 +38,17 @@ impl Cli {
             Commands::Init(init) => {
                 init.execute(client).await?
             }
-            _ => {
-                self.get_url()
+            Commands::Columns{} => {
+                Info::init_global();
+                let columns = INFO.get().unwrap().get_columns();
+                Table::new(columns).with(Style::markdown()).to_string()
             }
+            Commands::Tags{} => {
+                Info::init_global();
+                let tags = INFO.get().unwrap().get_tags();
+                Table::new(tags).with(Style::markdown()).to_string()
+            }
+            _ => String::new()
         };
         Ok(result)
     }
@@ -51,7 +62,7 @@ impl Cli {
                 format!("spaces/{}/users/", SPACE_ID)
             }
             Commands::Comments(comment) => comment.get_url(),
-            Commands::Init(init) => String::new()
+            _ => String::new()
         }
     }
     pub async fn get_table(
@@ -63,11 +74,12 @@ impl Cli {
             Commands::Columns {} => {
                 // let data= json.iter().map(|c| (c.title.as_str(), c.id)).collect::<HashMap<_,_>>();
 
-                let columns = COLUMNS.lock().unwrap();
-                let mut columns_vec = Vec::from_iter(columns.iter().map(|(_, column)| column));
-                columns_vec.sort_by(|a, b| a.sort_order.partial_cmp(&b.sort_order).unwrap());
-                let table = Table::new(columns_vec).with(Style::markdown()).to_string();
-                table
+                String::new()
+                // let columns = COLUMNS.lock().unwrap();
+                // let mut columns_vec = Vec::from_iter(columns.iter().map(|(_, column)| column));
+                // columns_vec.sort_by(|a, b| a.sort_order.partial_cmp(&b.sort_order).unwrap());
+                // let table = Table::new(columns_vec).with(Style::markdown()).to_string();
+                // table
             }
             Commands::Users {} => {
                 let users = USERS.lock().unwrap();
@@ -81,7 +93,7 @@ impl Cli {
                 Table::new(users_vec).with(Style::markdown()).to_string()
             }
             Commands::Comments(comment) => comment.get_table(response).await?,
-            Commands::Init(init) => String::new()
+            _ => String::new()
         };
         Ok(table)
     }

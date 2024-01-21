@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use serde_derive::{Deserialize, Serialize};
 use std::io::{Read, Write};
 use std::{fs::File, process::Command};
@@ -12,6 +13,8 @@ pub struct Card {
     pub title: String,
     pub column: Column,
     lane: Lane,
+    #[tabled(skip)]
+    properties: Option<HashMap<String, PropertiesValue>>,
     #[tabled(rename = "type")]
     r#type: CardType,
     #[tabled(skip)]
@@ -31,6 +34,12 @@ pub struct Card {
     checklists: Option<Vec<Checklist>>,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+enum PropertiesValue {
+    S(String),
+    V(Vec<u32>)
+}
+
 impl Card {
     fn new() -> Card {
         Card {
@@ -38,6 +47,7 @@ impl Card {
             title: "Title".to_string(),
             column: Column::new(),
             lane: Lane::new() ,
+            properties: None,
             r#type: CardType::new(),
             tags: None,
             sort_order: 0.0,
