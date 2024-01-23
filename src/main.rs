@@ -18,9 +18,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     };
     let mut skin = MadSkin::default();
-    // println!("{}", skin.inline(&table));
+    println!("{}", skin.inline(&result));
     skin.set_headers_fg(rgb(255, 187, 0));
-    skin.print_text(&result);
+    // println!("{}", result);
+    // skin.print_text(&result);
     // println!("{}", skin.inline(&table));
     Ok(())
 }

@@ -1,11 +1,15 @@
-use crate::models::Card as ModelsCard;
+use crate::api::ApiClient;
+use crate::models::common::{CONFIG, INFO};
+use crate::models::{Card as ModelsCard, User};
 use clap::{Args, Subcommand};
 use tabled::{
-    settings::{object::Rows, Modify, Style, Width},
+    settings::{
+        measurement::Percent,
+        object::{Columns, Rows},
+        Modify, Style, Width,
+    },
     Table,
 };
-use crate::models::common::CONFIG;
-
 
 #[derive(Args)]
 pub struct Card {
@@ -24,7 +28,16 @@ pub enum CardCommands {
     /// create new card
     New {},
     /// move card to next column
-    Mv { card_id: String },
+    Mv {
+        card_id: String,
+        /// Column id to move
+        #[arg(long, short)]
+        column_id: u32,
+        /// Lane id to move
+        #[arg(long, short)]
+        lane_id: u32,
+        add_responsible: Option<String>,
+    },
 }
 
 #[derive(Args)]
@@ -33,11 +46,11 @@ pub struct Ls {
     #[arg(short, long, default_value = "1")]
     condition: u8,
     /// Search by states filter, comma separated. 1-queued, 2-inProgress, 3-done.
-    #[arg(short='S', long, default_value = "1,2")]
+    #[arg(short = 'S', long, default_value = "1,2")]
     states: String,
     #[arg(short, long)]
     properties_id: Option<u32>,
-    #[arg(short='P', long)]
+    #[arg(short = 'P', long)]
     properties_value_id: Option<u32>,
     /// Created before search filter (format: ISO 8601).
     #[arg(long, value_parser = validate_iso8601)]
@@ -167,16 +180,28 @@ impl Ls {
             url.push_str(&format!("updated_after={}&", updated_after));
         }
         if let Some(first_moved_in_progress_after) = &self.first_moved_in_progress_after {
-            url.push_str(&format!("first_moved_in_progress_after={}&", first_moved_in_progress_after));
+            url.push_str(&format!(
+                "first_moved_in_progress_after={}&",
+                first_moved_in_progress_after
+            ));
         }
         if let Some(first_moved_in_progress_before) = &self.first_moved_in_progress_before {
-            url.push_str(&format!("first_moved_in_progress_before={}&", first_moved_in_progress_before));
+            url.push_str(&format!(
+                "first_moved_in_progress_before={}&",
+                first_moved_in_progress_before
+            ));
         }
         if let Some(last_moved_to_done_at_after) = &self.last_moved_to_done_at_after {
-            url.push_str(&format!("last_moved_to_done_at_after={}&", last_moved_to_done_at_after));
+            url.push_str(&format!(
+                "last_moved_to_done_at_after={}&",
+                last_moved_to_done_at_after
+            ));
         }
         if let Some(last_moved_to_done_at_before) = &self.last_moved_to_done_at_before {
-            url.push_str(&format!("last_moved_to_done_at_before={}&", last_moved_to_done_at_before));
+            url.push_str(&format!(
+                "last_moved_to_done_at_before={}&",
+                last_moved_to_done_at_before
+            ));
         }
         if let Some(due_date_after) = &self.due_date_after {
             url.push_str(&format!("due_date_after={}&", due_date_after));
@@ -274,58 +299,86 @@ fn validate_iso8601(s: &str) -> Result<String, String> {
 impl Card {
     pub fn get_url(&self) -> String {
         match &self.command {
-            CardCommands::Ls(ls) => {
-                ls.get_url()
-            }
+            CardCommands::Ls(ls) => ls.get_url(),
             CardCommands::Get { card_id }
             | CardCommands::Edit { card_id }
-            | CardCommands::Mv { card_id } => {
-                format!("cards/{}",  card_id)
-                }
-            _ => String::new()
-
+            | CardCommands::Mv { card_id, .. } => {
+                format!("cards/{}", card_id)
+            }
+            _ => String::new(),
         }
     }
-    pub async fn get_table(&self, response: reqwest::Response) ->Result<String, Box<dyn std::error::Error>>{
+    pub async fn get_table(&self, client: ApiClient) -> Result<String, Box<dyn std::error::Error>> {
+        let api_url = self.get_url();
+        let response = client.get_data(&api_url).await?;
         let table = match &self.command {
             CardCommands::Get { card_id: _ } => {
-            let card: ModelsCard = response.json().await?;
+                let card: ModelsCard = response.json().await?;
                 // card.get_table(vec![json])
-                card.to_string()
+                card.to_table_string()
             }
-            CardCommands::Ls (ls) => {
+            CardCommands::Ls(ls) => {
                 let mut cards: Vec<ModelsCard> = response.json().await?;
                 if let Some(p_id) = ls.properties_id {
                     cards = cards.into_iter().filter(|c| c.is_property(p_id)).collect()
                 }
                 if let Some(pv_id) = ls.properties_value_id {
-                    cards = cards.into_iter().filter(|c| c.is_property_value(pv_id)).collect()
+                    cards = cards
+                        .into_iter()
+                        .filter(|c| c.is_property_value(pv_id))
+                        .collect()
                 }
                 cards.sort_by(|a, b| a.sort_order.partial_cmp(&b.sort_order).unwrap());
+
                 Table::new(cards)
-                    .with(Style::markdown())
-                    .with(Modify::new(Rows::new(0..)).with(Width::wrap(70)))
+                    .modify(Columns::first(), Width::increase(10))
+                    .modify(Columns::single(1), Width::wrap(70).keep_words())
+                    .modify(Columns::single(2), Width::increase(10))
+                    .with(Style::modern())
+                    .with(Width::wrap(Percent(98)).keep_words())
                     .to_string()
             }
 
-            CardCommands::New{} => {
-                ModelsCard::from_string()
-            }
+            CardCommands::New {} => ModelsCard::from_string(),
 
-            CardCommands::Mv { card_id: _ } => {
+            CardCommands::Mv {
+                card_id,
+                column_id,
+                lane_id,
+                add_responsible,
+            } => {
                 let mut card: ModelsCard = response.json().await?;
+                let info = INFO.get().unwrap();
+                card.set_column_id(*column_id);
+                let board_id = info.get_board_id_by_column_id(*column_id);
+                card.set_lane_id(*lane_id);
+                if let Some(board_id) = board_id {
+                    card.set_board_id(board_id);
+                } else {
+                    let err: Box<dyn std::error::Error> =
+                        format!("Not found board_id for column_id: {}", column_id).into();
+                    return Err(err);
+                }
+                if let Some(username) = add_responsible {
+                    let _ = card.add_member(&username, true)?;
+                };
+                let api_url = self.get_url();
+                let response = client.patch_data(&api_url, card).await?;
+                let status_code = &response.status();
+                let text = response.text().await?;
+                println!("{} {}", status_code, text);
+
                 // let mut columns_vec = Vec::from_iter(columns.iter().map(|(_, column)| column));
                 // columns_vec.sort_by(|a, b| a.sort_order.partial_cmp(&b.sort_order).unwrap());
                 // let idx = columns_vec.iter().position(|&x| x.title == card.column.title).unwrap();
                 // if idx < columns_vec.len() {
                 //     card.column = columns_vec[idx+1].clone();
                 // }
-                // println!("{:?}", card);
+                // println!("{:#?}", card);
                 // let m = M{column_id: columns_vec[idx+1].id};
                 // let res = patch_data(&client, url.as_str(), m).await?;
                 // println!("{:?}", res);
                 String::from("")
-
             }
             _ => String::from(""),
         };

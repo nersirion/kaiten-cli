@@ -1,12 +1,14 @@
 use serde_derive::{Deserialize, Serialize};
+use tabled::Tabled;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone, Tabled)]
 pub struct Lane {
     pub id: u32,
     pub title: String,
     board_id: u32,
     condition: u8,
-    sort_order: f32,
+    #[tabled(skip)]
+    pub sort_order: f32,
 }
 
 impl std::fmt::Display for Lane {

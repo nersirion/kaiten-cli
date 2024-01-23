@@ -14,3 +14,12 @@ impl std::fmt::Display for User {
         write!(f, "{}", self.username)
     }
 }
+impl User {
+    pub fn set_responsible(&mut self, responsible: bool) {
+        if responsible {
+            self.r#type = Some(2);
+        } else {
+            self.r#type = Some(1);
+        }
+    }
+}

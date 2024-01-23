@@ -19,4 +19,12 @@ impl Board {
     pub fn get_columns(&self) -> Vec<Column> {
         self.columns.as_ref().cloned().unwrap_or(vec![])
     }
+
+    pub fn get_lanes(&self) -> Vec<Lane> {
+        self.lanes.as_ref().cloned().unwrap_or(vec![])
+    }
+
+    pub fn get_space_id(&self) -> u32 {
+        self.space_id
+    }
 }

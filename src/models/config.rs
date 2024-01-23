@@ -110,10 +110,10 @@ impl Config {
             }
         }
         if let Some(board_id) = board_id {
-            self.set_space_id(board_id)
+            self.set_board_id(board_id)
         } else if let Ok(board_id) = env::var("SPACE_ID") {
             if let Ok(board_id) = board_id.parse::<u32>() {
-            self.set_space_id(board_id)
+            self.set_board_id(board_id)
             }
         }
     }

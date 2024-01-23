@@ -1,4 +1,4 @@
-use super::{Board, CardType, Column, Config, Space, Tag, User};
+use super::{Board, CardType, Column, Config, Space, Tag, User, Lane};
 use lazy_static::lazy_static;
 use once_cell::sync::OnceCell;
 use serde_derive::{Deserialize, Serialize};
@@ -100,6 +100,21 @@ impl Info {
         columns
     }
 
+    pub fn get_lanes(&self, board_id: Option<u32>) -> Vec<Lane> {
+        let mut lanes = Vec::new();
+        if let Some(board_id) = board_id {
+            if let Some(board) = self.boards.get(&board_id) {
+                lanes.extend(board.get_lanes())
+            }
+        } else {
+            for board in self.boards.values() {
+               lanes.extend(board.get_lanes())
+            }
+        }
+        lanes.sort_by(|a, b| a.sort_order.partial_cmp(&b.sort_order).unwrap());
+        lanes
+    }
+
     pub fn get_tags(&self) -> &Vec<Tag> {
         &self.tags
     }
@@ -118,5 +133,29 @@ impl Info {
             }
         }
         users
+    }
+    pub fn get_user(&self, username: &str, space_id: Option<u32>) -> Option<User> {
+        let users = self.get_users(space_id);
+        let mut user: Option<User> = None;
+        let idx = users.iter().position(|u| u.username.eq(username));
+        if let Some(idx) = idx {
+            let _ = user.insert(users[idx].clone());
+        }
+        user
+    }
+
+    pub fn get_space_id_by_board_id(&self, board_id: u32) -> Option<u32> {
+        match self.boards.get(&board_id) {
+            Some(board) => Some(board.get_space_id()),
+            None => None,
+        }
+    }
+
+    pub fn get_board_id_by_column_id(&self, column_id: u32) -> Option<u32> {
+        let columns = self.get_columns(None);
+        let board_id = columns.iter().flat_map(|col| col.subcolumns.iter().flatten().chain(std::iter::once(col)))
+            .find(|&col| col.get_id() == column_id)
+            .map(|col| col.get_board_id());
+        board_id
     }
 }

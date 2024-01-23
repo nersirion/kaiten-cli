@@ -1,16 +1,29 @@
-use std::collections::HashMap;
 use serde_derive::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::{fs::File, process::Command};
-use tabled::Tabled;
-use tempfile::Builder;
+use tabled::{
+    builder::Builder as TableBuilder,
+    col, row,
+    settings::{object::Rows, Modify, Panel, Style, Width},
+    Tabled,
+};
+use super::common::{INFO, CONFIG};
+
 use crate::models::*;
+use tempfile::Builder;
 
 #[derive(Serialize, Deserialize, Debug, Tabled)]
 pub struct Card {
     id: u32,
     pub title: String,
     pub column: Column,
+    #[tabled(skip)]
+    column_id: u32,
+    #[tabled(skip)]
+    board_id: u32,
+    #[tabled(skip)]
+    lane_id: u32,
     lane: Lane,
     #[tabled(skip)]
     properties: Option<HashMap<String, PropertiesValue>>,
@@ -29,11 +42,13 @@ pub struct Card {
     #[tabled(skip)]
     created: String,
     #[tabled(skip)]
+    last_moved_at: String,
+    #[tabled(skip)]
     checklists: Option<Vec<Checklist>>,
     #[tabled(skip)]
     parents: Option<Vec<RelatedCard>>,
     #[tabled(skip)]
-    childrens: Option<Vec<RelatedCard>>
+    childrens: Option<Vec<RelatedCard>>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Tabled)]
@@ -42,14 +57,14 @@ pub struct RelatedCard {
     title: String,
     board_id: u32,
     #[tabled(rename = "type")]
-    r#type: CardType
+    r#type: CardType,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
 enum PropertiesValue {
     S(String),
-    V(Vec<u32>)
+    V(Vec<u32>),
 }
 
 impl Card {
@@ -58,7 +73,10 @@ impl Card {
             id: 1,
             title: "Title".to_string(),
             column: Column::new(),
-            lane: Lane::new() ,
+            column_id: 0,
+            board_id: 0,
+            lane_id: 0,
+            lane: Lane::new(),
             properties: None,
             r#type: CardType::new(),
             tags: None,
@@ -66,11 +84,11 @@ impl Card {
             members: None,
             description: Some("".to_string()),
             archived: false,
-            created: "Test".to_string(),
+            created: String::new(),
+            last_moved_at: String::new(),
             checklists: None,
             parents: None,
             childrens: None,
-
         }
     }
     pub fn to_string(&self) -> String {
@@ -99,6 +117,21 @@ impl Card {
             title, lane, column, column, card_type, tags, desc, checklists_str
         );
         text
+    }
+
+    pub fn to_table_string(&self) -> String {
+        let mut builder = TableBuilder::default();
+        let row1 = vec![&self.r#type.letter, self.column.get_title()];
+        let desc = &self.description.as_ref().cloned().unwrap_or(String::new());
+        let row2 = vec![desc];
+        builder.push_record(row1);
+        builder.push_record(row2);
+        let table = builder
+            .build()
+            .with(Panel::header(&self.title))
+            .with(Style::markdown())
+            .to_string();
+        table
     }
 
     pub fn from_string() -> String {
@@ -201,16 +234,14 @@ impl Card {
         if let Some(properties) = &self.properties {
             for item in properties.values() {
                 let contains = match item {
-                        PropertiesValue::S(s) => {
-                            let string_id = format!("{}", property_value_id);
-                            string_id.eq(s)
-                        }
-                        PropertiesValue::V(v) => {
-                            v.contains(&property_value_id)
-                        }
-                    };
+                    PropertiesValue::S(s) => {
+                        let string_id = format!("{}", property_value_id);
+                        string_id.eq(s)
+                    }
+                    PropertiesValue::V(v) => v.contains(&property_value_id),
+                };
                 if contains {
-                    return true
+                    return true;
                 }
             }
             false
@@ -219,9 +250,49 @@ impl Card {
         }
     }
 
-    // pub fn from_string(text: String) -> Self {
-    //
-    // }
+    pub fn set_column_id(&mut self, column_id: u32) {
+        self.column_id = column_id
+    }
+    pub fn set_board_id(&mut self, board_id: u32) {
+        self.board_id = board_id
+    }
+    pub fn set_lane_id(&mut self, lane_id: u32) {
+        self.lane_id = lane_id
+    }
+
+    fn get_member(&self, username: &str) -> Option<User> {
+        let mut user: Option<User> = None;
+        if let Some(members) = self.members.clone() {
+            let idx = members.iter().position(|m| m.username.eq(username));
+            if let Some(idx) = idx {
+                let _ = user.insert(members[idx].clone());
+            }
+        }
+        user
+    }
+
+    pub fn add_member(&mut self, username: &str, responsible: bool) -> Result<(), String> {
+        let mut user = self.get_member(username);
+        if user.is_none() {
+            let config = CONFIG.lock().unwrap();
+            let info = INFO.get().unwrap();
+            let info_user = info.get_user(username, config.get_space_id());
+            if info_user.is_none() {
+                return Err(format!("User {} not found", username))
+            } else {
+            let _ = user.insert(info_user.unwrap());
+            }
+        }
+        let mut user = user.unwrap();
+        user.set_responsible(responsible);
+        if let Some(members) = self.members.as_mut() {
+            members.push(user);
+
+        } else {
+            self.members = Some(vec![user]);
+        }
+        Ok(())
+    }
 }
 
 fn display_description(o: &Option<String>) -> String {
@@ -236,7 +307,11 @@ fn display_description(o: &Option<String>) -> String {
 fn display_members(o: &Option<Vec<User>>) -> String {
     match o {
         Some(members) => {
-            let mems: Vec<&str> = members.into_iter().filter(|m| m.r#type.is_some() && m.r#type.unwrap() == 2).map(|m| m.username.as_str()).collect();
+            let mems: Vec<&str> = members
+                .into_iter()
+                .filter(|m| m.r#type.is_some() && m.r#type.unwrap() == 2)
+                .map(|m| m.username.as_str())
+                .collect();
             format!("{}", mems.join(",\n"))
         }
         None => format!(""),
@@ -245,10 +320,10 @@ fn display_members(o: &Option<Vec<User>>) -> String {
 
 fn display_tags(tags: &Option<Vec<Tag>>) -> String {
     match tags {
-        Some(tags) => { 
+        Some(tags) => {
             let str_tags: Vec<&str> = tags.into_iter().map(|tag| tag.name.as_str()).collect();
-            format!("{}", str_tags.join(", "))
+            format!("{}", str_tags.join("\n"))
         }
-        None => format!("")
+        None => format!(""),
     }
 }

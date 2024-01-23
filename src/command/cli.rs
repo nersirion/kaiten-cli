@@ -6,6 +6,7 @@ use crate::models::common::{CONFIG, INFO};
 use crate::models::{Config as ModelsConfig, Info, User};
 use clap::{Parser, Subcommand};
 use tabled::{settings::Style, Table};
+use tabled::settings::{object::{Columns as Cols}, Width, measurement::Percent};
 
 #[derive(Parser)]
 #[clap(author, version, about, long_about = None)]
@@ -25,6 +26,7 @@ pub enum Commands {
     Columns {},
     Users {},
     Tags {},
+    Lanes {},
     Comments(Comment),
     /// Download all info for long-term entity
     Init(Init),
@@ -46,24 +48,28 @@ impl Cli {
                 Info::init_global();
                 let config = CONFIG.lock().unwrap();
                 let columns = INFO.get().unwrap().get_columns(config.get_board_id());
-                Table::new(columns).with(Style::markdown()).to_string()
+                Table::new(columns).modify(Cols::last(), Width::wrap(80).keep_words()).with(Style::modern()).to_string()
             }
             Commands::Users {} => {
                 Info::init_global();
                 let config = CONFIG.lock().unwrap();
                 let users = INFO.get().unwrap().get_users(config.get_space_id());
-                Table::new(users).with(Style::markdown()).to_string()
+                Table::new(users).with(Style::modern()).to_string()
             }
             Commands::Tags {} => {
                 Info::init_global();
                 let tags = INFO.get().unwrap().get_tags();
-                Table::new(tags).with(Style::markdown()).to_string()
+                Table::new(tags).with(Style::modern()).to_string()
+            }
+            Commands::Lanes {} => {
+                Info::init_global();
+                let config = CONFIG.lock().unwrap();
+                let lanes = INFO.get().unwrap().get_lanes(config.get_board_id());
+                Table::new(lanes).with(Style::modern()).to_string()
             }
             Commands::Cards(card) => {
-                let api_url = card.get_url();
-                println!("{}", api_url);
-                let response = client.get_data(&api_url).await?;
-                card.get_table(response).await?
+                Info::init_global();
+                card.get_table(client).await?
             }
             _ => String::new(),
         };

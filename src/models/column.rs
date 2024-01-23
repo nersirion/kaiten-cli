@@ -3,15 +3,15 @@ use tabled::Tabled;
 
 #[derive(Serialize, Deserialize, Debug, Tabled, Clone)]
 pub struct Column {
-    pub id: u32,
-    pub title: String,
+    id: u32,
+    title: String,
     board_id: u32,
     #[tabled(skip)]
     pub sort_order: f32,
     #[tabled(skip)]
     column_id: Option<u32>,
     #[tabled(display_with="Column::dispay_subcolumns")]
-    subcolumns: Option<Vec<Column>>,
+    pub subcolumns: Option<Vec<Column>>,
 }
 impl std::fmt::Display for Column {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -43,5 +43,17 @@ impl Column {
             }
             None => format!(""),
         }
+    }
+
+    pub fn get_id(&self) -> u32 {
+        self.id
+    }
+
+    pub fn get_title(&self) -> &str {
+        &self.title
+    }
+
+    pub fn get_board_id(&self) -> u32 {
+        self.board_id
     }
 }

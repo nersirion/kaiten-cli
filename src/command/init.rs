@@ -27,7 +27,7 @@ impl std::fmt::Display for FileExistsError {
 #[derive(Args)]
 pub struct Init {
     /// Show current entities info from cache file
-    #[arg(short, long)]
+    #[arg(long)]
     pub show: bool,
     /// Update entities info cache file from API
     #[arg(short, long)]
