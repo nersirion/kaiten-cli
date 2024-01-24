@@ -22,14 +22,18 @@ pub enum CardCommands {
     /// print all cards for user
     Ls(Ls),
     /// get card info
-    Get { card_id: String },
+    Get {
+        card_id: u32,
+    },
     /// edit card
-    Edit { card_id: String },
+    Edit {
+        card_id: u32,
+    },
     /// create new card
     New {},
     /// move card to next column
     Mv {
-        card_id: String,
+        card_id: u32,
         /// Column id to move
         #[arg(long, short)]
         column_id: u32,
@@ -37,6 +41,12 @@ pub enum CardCommands {
         #[arg(long, short)]
         lane_id: u32,
         add_responsible: Option<String>,
+    },
+    Parents {
+        card_id: u32,
+    },
+    Childrens {
+        card_id: u32,
     },
 }
 
@@ -302,7 +312,9 @@ impl Card {
             CardCommands::Ls(ls) => ls.get_url(),
             CardCommands::Get { card_id }
             | CardCommands::Edit { card_id }
-            | CardCommands::Mv { card_id, .. } => {
+            | CardCommands::Mv { card_id, .. }
+            | CardCommands::Parents { card_id }
+            | CardCommands::Childrens { card_id } => {
                 format!("cards/{}", card_id)
             }
             _ => String::new(),
@@ -314,8 +326,17 @@ impl Card {
         let table = match &self.command {
             CardCommands::Get { card_id: _ } => {
                 let card: ModelsCard = response.json().await?;
+                Table::new(vec![card])
+                    .modify(Columns::first(), Width::increase(10))
+                    .modify(Columns::single(1), Width::wrap(70).keep_words())
+                    .modify(Columns::single(2), Width::increase(10))
+                    .with(Style::modern())
+                    .with(Width::wrap(Percent(98)).keep_words())
+                    .to_string()
                 // card.get_table(vec![json])
-                card.to_table_string()
+                // println!("{:#?}", card);
+                // card.to_table_string()
+                // String::new()
             }
             CardCommands::Ls(ls) => {
                 let mut cards: Vec<ModelsCard> = response.json().await?;
@@ -336,6 +357,20 @@ impl Card {
                     .modify(Columns::single(2), Width::increase(10))
                     .with(Style::modern())
                     .with(Width::wrap(Percent(98)).keep_words())
+                    .to_string()
+            }
+            CardCommands::Parents { card_id } => {
+                let card: ModelsCard = response.json().await?;
+                Table::new(card.get_parents())
+                    .modify(Columns::single(1), Width::wrap(80).keep_words())
+                    .with(Style::modern())
+                    .to_string()
+            }
+            CardCommands::Childrens { card_id } => {
+                let card: ModelsCard = response.json().await?;
+                Table::new(card.get_childrens())
+                    .modify(Columns::single(1), Width::wrap(80).keep_words())
+                    .with(Style::modern())
                     .to_string()
             }
 
@@ -359,14 +394,17 @@ impl Card {
                         format!("Not found board_id for column_id: {}", column_id).into();
                     return Err(err);
                 }
-                if let Some(username) = add_responsible {
-                    let _ = card.add_member(&username, true)?;
-                };
+                // println!("{:#?}", card);
                 let api_url = self.get_url();
                 let response = client.patch_data(&api_url, card).await?;
                 let status_code = &response.status();
                 let text = response.text().await?;
                 println!("{} {}", status_code, text);
+                if let Some(username) = add_responsible {
+                    let user = info.get_user(&username, None);
+                    let api_url = format!("{}/members", api_url);
+                    let response = client.post_data(&api_url, user).await?;
+                };
 
                 // let mut columns_vec = Vec::from_iter(columns.iter().map(|(_, column)| column));
                 // columns_vec.sort_by(|a, b| a.sort_order.partial_cmp(&b.sort_order).unwrap());

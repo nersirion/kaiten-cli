@@ -85,6 +85,12 @@ impl Info {
             }
         }
     }
+    pub fn get_spaces(&self) -> Vec<Space> {
+        self.spaces.values().cloned().collect()
+    }
+    pub fn get_boards(&self) -> Vec<Board> {
+        self.boards.values().cloned().collect()
+    }
     pub fn get_columns(&self, board_id: Option<u32>) -> Vec<Column> {
         let mut columns = Vec::new();
         if let Some(board_id) = board_id {

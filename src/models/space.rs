@@ -1,7 +1,7 @@
 use super::{Board, User};
 use serde_derive::{Deserialize, Serialize};
 use tabled::Tabled;
-#[derive(Serialize, Deserialize, Debug, Tabled)]
+#[derive(Serialize, Deserialize, Debug, Tabled, Clone)]
 pub struct Space {
     id: u32,
     #[tabled(skip)]

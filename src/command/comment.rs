@@ -1,9 +1,10 @@
 use crate::models::Comment as ModelsComment;
 use clap::{Args, Subcommand};
 use tabled::{
-    settings::{object::Rows, Modify, Style, Width},
+    settings::{object::Columns, Modify, Style, Width},
     Table,
 };
+use crate::api::ApiClient;
 
 #[derive(Args)]
 pub struct Comment {
@@ -35,13 +36,15 @@ impl Comment {
     }
     pub async fn get_table(
         &self,
-        response: reqwest::Response,
+        client: ApiClient,
     ) -> Result<String, Box<dyn std::error::Error>> {
+        let api_url = self.get_url();
+        let response = client.get_data(&api_url).await?;
         let table = match &self.command {
             CommentCommands::Get { .. } => {
                 let mut json: Vec<ModelsComment> = response.json().await?;
                 json.sort_by(|a, b| a.created.partial_cmp(&b.created).unwrap());
-                Table::new(json).with(Style::markdown()).to_string()
+                Table::new(json).modify(Columns::first(), Width::wrap(10)).modify(Columns::single(2), Width::wrap(80).keep_words()).with(Style::modern()).to_string()
             }
             _ => String::new(),
         };

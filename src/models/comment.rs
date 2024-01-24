@@ -9,6 +9,7 @@ pub struct Comment {
     text: String,
     #[tabled(skip)]
     edited: bool,
+    #[tabled(skip)]
     card_id: u32,
     #[tabled(skip)]
     author_id: u32,

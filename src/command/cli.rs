@@ -27,6 +27,8 @@ pub enum Commands {
     Users {},
     Tags {},
     Lanes {},
+    Spaces {},
+    Boards {},
     Comments(Comment),
     /// Download all info for long-term entity
     Init(Init),
@@ -40,7 +42,7 @@ impl Cli {
             let mut config = CONFIG.lock().unwrap();
             config.update(self.space_id, self.board_id);
         }
-        let client = ApiClient::default();
+        let client = ApiClient::default()?;
         let result = match &self.command {
             Commands::Init(init) => init.execute(client).await?,
             Commands::Config(config) => config.execute().await?,
@@ -67,9 +69,23 @@ impl Cli {
                 let lanes = INFO.get().unwrap().get_lanes(config.get_board_id());
                 Table::new(lanes).with(Style::modern()).to_string()
             }
+            Commands::Spaces {} => {
+                Info::init_global();
+                let spaces = INFO.get().unwrap().get_spaces();
+                Table::new(spaces).with(Style::modern()).to_string()
+            }
+            Commands::Boards {} => {
+                Info::init_global();
+                let boards = INFO.get().unwrap().get_boards();
+                Table::new(boards).with(Style::modern()).to_string()
+            }
             Commands::Cards(card) => {
                 Info::init_global();
                 card.get_table(client).await?
+            }
+            Commands::Comments(comment) => {
+                Info::init_global();
+                comment.get_table(client).await?
             }
             _ => String::new(),
         };

@@ -1,3 +1,4 @@
+use super::common::{CONFIG, INFO};
 use serde_derive::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::io::{Read, Write};
@@ -8,7 +9,6 @@ use tabled::{
     settings::{object::Rows, Modify, Panel, Style, Width},
     Tabled,
 };
-use super::common::{INFO, CONFIG};
 
 use crate::models::*;
 use tempfile::Builder;
@@ -25,6 +25,12 @@ pub struct Card {
     #[tabled(skip)]
     lane_id: u32,
     lane: Lane,
+    #[tabled(skip)]
+    blocked: bool,
+    #[tabled(skip)]
+    blockin_card: Option<bool>,
+    #[tabled(skip)]
+    block_reason: Option<String>,
     #[tabled(skip)]
     properties: Option<HashMap<String, PropertiesValue>>,
     #[tabled(rename = "type")]
@@ -48,16 +54,20 @@ pub struct Card {
     #[tabled(skip)]
     parents: Option<Vec<RelatedCard>>,
     #[tabled(skip)]
-    childrens: Option<Vec<RelatedCard>>,
+    children: Option<Vec<RelatedCard>>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Tabled)]
+#[derive(Serialize, Deserialize, Debug, Tabled, Clone)]
 pub struct RelatedCard {
     id: u32,
     title: String,
     board_id: u32,
+    column_id: u32,
+    lane_id: u32,
     #[tabled(rename = "type")]
     r#type: CardType,
+    condition: u8,
+    state: u8,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -77,6 +87,9 @@ impl Card {
             board_id: 0,
             lane_id: 0,
             lane: Lane::new(),
+            blocked: false,
+            blockin_card: None,
+            block_reason: None,
             properties: None,
             r#type: CardType::new(),
             tags: None,
@@ -88,7 +101,7 @@ impl Card {
             last_moved_at: String::new(),
             checklists: None,
             parents: None,
-            childrens: None,
+            children: None,
         }
     }
     pub fn to_string(&self) -> String {
@@ -260,38 +273,19 @@ impl Card {
         self.lane_id = lane_id
     }
 
-    fn get_member(&self, username: &str) -> Option<User> {
-        let mut user: Option<User> = None;
-        if let Some(members) = self.members.clone() {
-            let idx = members.iter().position(|m| m.username.eq(username));
-            if let Some(idx) = idx {
-                let _ = user.insert(members[idx].clone());
-            }
+    fn is_member(&self, username: &str) -> bool {
+        if let Some(members) = &self.members {
+            members.iter().any(|m| m.username.eq(username))
+        } else {
+            false
         }
-        user
     }
 
-    pub fn add_member(&mut self, username: &str, responsible: bool) -> Result<(), String> {
-        let mut user = self.get_member(username);
-        if user.is_none() {
-            let config = CONFIG.lock().unwrap();
-            let info = INFO.get().unwrap();
-            let info_user = info.get_user(username, config.get_space_id());
-            if info_user.is_none() {
-                return Err(format!("User {} not found", username))
-            } else {
-            let _ = user.insert(info_user.unwrap());
-            }
-        }
-        let mut user = user.unwrap();
-        user.set_responsible(responsible);
-        if let Some(members) = self.members.as_mut() {
-            members.push(user);
-
-        } else {
-            self.members = Some(vec![user]);
-        }
-        Ok(())
+    pub fn get_parents(&self) -> Vec<RelatedCard> {
+        self.parents.as_ref().cloned().unwrap_or(vec![])
+    }
+    pub fn get_childrens(&self) -> Vec<RelatedCard> {
+        self.children.as_ref().cloned().unwrap_or(vec![])
     }
 }
 
@@ -309,7 +303,7 @@ fn display_members(o: &Option<Vec<User>>) -> String {
         Some(members) => {
             let mems: Vec<&str> = members
                 .into_iter()
-                .filter(|m| m.r#type.is_some() && m.r#type.unwrap() == 2)
+                .filter(|m| m.is_responsible())
                 .map(|m| m.username.as_str())
                 .collect();
             format!("{}", mems.join(",\n"))

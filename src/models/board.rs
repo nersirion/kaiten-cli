@@ -2,7 +2,7 @@
 use serde_derive::{Deserialize, Serialize};
 use tabled::Tabled;
 use super::{Column, Lane};
-#[derive(Serialize, Deserialize, Debug, Tabled)]
+#[derive(Serialize, Deserialize, Debug, Tabled, Clone)]
 pub struct Board{
     id: u32,
     space_id: u32,
