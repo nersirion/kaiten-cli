@@ -1,6 +1,7 @@
 use reqwest;
 use reqwest::header::{HeaderValue, ACCEPT, AUTHORIZATION, CONTENT_TYPE};
 use std::env;
+use std::io;
 
 pub struct ApiClient {
     client: reqwest::Client,
@@ -31,6 +32,16 @@ impl ApiClient {
         headers.insert(ACCEPT, HeaderValue::from_static("application/json"));
         headers
     }
+    async fn response_into_error(
+        &self,
+        response: reqwest::Response,
+    ) -> Result<reqwest::Response, Box<dyn std::error::Error>> {
+        let url = response.url().to_string();
+        let text = response.text().await?;
+        let err_msg = format!("Request to url {} has failed. Error: {}", url, text);
+        let io_err = io::Error::new(io::ErrorKind::Other, err_msg);
+        Err(Box::new(io_err) as Box<dyn std::error::Error>)
+    }
     async fn make_request<T>(
         &self,
         method: reqwest::Method,
@@ -53,12 +64,19 @@ impl ApiClient {
         };
 
         let response = request.send().await?;
-        Ok(response)
+        if response.status().is_success() {
+            Ok(response)
+        } else {
+            self.response_into_error(response).await
+        }
     }
 
-
-    pub async fn get_data(&self, api_url: &str) -> Result<reqwest::Response, Box<dyn std::error::Error>> {
-        self.make_request::<()>(reqwest::Method::GET, api_url, None).await
+    pub async fn get_data(
+        &self,
+        api_url: &str,
+    ) -> Result<reqwest::Response, Box<dyn std::error::Error>> {
+        self.make_request::<()>(reqwest::Method::GET, api_url, None)
+            .await
     }
     pub async fn patch_data<T>(
         &self,
@@ -68,7 +86,8 @@ impl ApiClient {
     where
         T: serde::Serialize,
     {
-        self.make_request(reqwest::Method::PATCH, api_url, Some(data)).await
+        self.make_request(reqwest::Method::PATCH, api_url, Some(data))
+            .await
     }
     pub async fn post_data<T>(
         &self,
@@ -78,6 +97,7 @@ impl ApiClient {
     where
         T: serde::Serialize,
     {
-        self.make_request(reqwest::Method::POST, api_url, Some(data)).await
+        self.make_request(reqwest::Method::POST, api_url, Some(data))
+            .await
     }
 }

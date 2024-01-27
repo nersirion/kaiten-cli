@@ -1,4 +1,6 @@
-use super::common::{CONFIG, INFO};
+use chrono::prelude::*;
+use clap::Parser;
+use colored::Colorize;
 use serde_derive::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::io::{Read, Write};
@@ -6,8 +8,12 @@ use std::{fs::File, process::Command};
 use tabled::{
     builder::Builder as TableBuilder,
     col, row,
-    settings::{object::Rows, Modify, Panel, Style, Width},
-    Tabled,
+    settings::{
+        object::{Columns, Rows},
+        Alignment, Concat, Disable, Format, Merge, Panel, Settings, Span, Style, Width,
+    },
+    tables::PoolTable,
+    Table, Tabled,
 };
 
 use crate::models::*;
@@ -24,22 +30,27 @@ pub struct Card {
     board_id: u32,
     #[tabled(skip)]
     lane_id: u32,
+    #[tabled(skip)]
     lane: Lane,
     #[tabled(skip)]
     blocked: bool,
     #[tabled(skip)]
-    blockin_card: Option<bool>,
+    blocking_card: Option<bool>,
     #[tabled(skip)]
-    block_reason: Option<String>,
+    #[serde(default = "String::new")]
+    block_reason: String,
     #[tabled(skip)]
+    #[serde(skip_serializing)]
     properties: Option<HashMap<String, PropertiesValue>>,
     #[tabled(rename = "type")]
     r#type: CardType,
     #[tabled(skip)]
     pub sort_order: f32,
     #[tabled(display_with = "display_members")]
+    #[serde(skip_serializing)]
     members: Option<Vec<User>>,
     #[tabled(display_with = "display_tags")]
+    #[serde(skip_serializing)]
     tags: Option<Vec<Tag>>,
     #[tabled(skip)]
     description: Option<String>,
@@ -47,14 +58,22 @@ pub struct Card {
     pub archived: bool,
     #[tabled(skip)]
     created: String,
-    #[tabled(skip)]
+    // #[tabled(skip)]
+    #[tabled(display_with = "Self::display_move_diff", rename = "moved")]
     last_moved_at: String,
     #[tabled(skip)]
+    #[serde(skip_serializing)]
     checklists: Option<Vec<Checklist>>,
+    #[serde(skip_serializing)]
     #[tabled(skip)]
     parents: Option<Vec<RelatedCard>>,
+    #[serde(skip_serializing)]
     #[tabled(skip)]
     children: Option<Vec<RelatedCard>>,
+    #[tabled(skip)]
+    blockers: Option<Vec<Blocker>>,
+    #[tabled(skip)]
+    blocking_blockers: Option<Vec<Blocker>>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Tabled, Clone)]
@@ -68,6 +87,15 @@ pub struct RelatedCard {
     r#type: CardType,
     condition: u8,
     state: u8,
+}
+
+impl RelatedCard {
+    pub fn get_id(&self) -> u32 {
+        self.id
+    }
+    pub fn get_title(&self) -> &str {
+        &self.title
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -88,8 +116,8 @@ impl Card {
             lane_id: 0,
             lane: Lane::new(),
             blocked: false,
-            blockin_card: None,
-            block_reason: None,
+            blocking_card: None,
+            block_reason: String::new(),
             properties: None,
             r#type: CardType::new(),
             tags: None,
@@ -102,53 +130,127 @@ impl Card {
             checklists: None,
             parents: None,
             children: None,
+            blockers: None,
+            blocking_blockers: None,
         }
     }
-    pub fn to_string(&self) -> String {
-        let title = format!("# Title: {}\n\n", self.title);
-        let lane = format!("## Lane: {}\n", self.lane);
-        // let columns = Vec::new();
-        // let cs: Vec<String> = Vec::from_iter(columns.iter().map(|(k, _)| k.to_string()));
-        // let cols = format!("<!-- {} -->\n", cs.join("|"));
-        let column = format!("## Column: {}\n", self.column);
-        let card_type = format!("## Type: {}\n", self.r#type);
-        let tags = format!("## Tags: {}\n", display_tags(&self.tags));
-        let desc = format!("## Description: \n{}\n", self.description.as_ref().unwrap());
-        let checklists: Vec<String> = if self.checklists.is_some() {
-            self.checklists
-                .as_ref()
-                .unwrap()
-                .into_iter()
-                .map(|x| x.to_string())
-                .collect()
-        } else {
-            vec!["".to_string()]
-        };
-        let checklists_str = format!("## Checklists:\n {}\n", checklists.join("\n"));
-        let text = format!(
-            "{}{}{}{}{}{}{}{}",
-            title, lane, column, column, card_type, tags, desc, checklists_str
-        );
-        text
+
+    fn process_blocker(
+        proccessed: &mut Vec<[String; 3]>,
+        blockers: Option<Vec<Blocker>>,
+        red: bool,
+    ) {
+        if let Some(blockers) = blockers {
+            for b in blockers.iter() {
+                let reason = b.get_reason();
+                let reason = if red {
+                    reason.red().to_string()
+                } else {
+                    reason.yellow().to_string()
+                };
+                let mut btitle = String::new();
+                let mut bcardid = String::new();
+                if let Some(card) = b.get_card() {
+                    btitle = card.get_title().to_string();
+                    btitle = if red {
+                        btitle.red().to_string()
+                    } else {
+                        btitle.yellow().to_string()
+                    };
+                    bcardid = card.get_id().to_string();
+                }
+                proccessed.push([reason, btitle, bcardid])
+            }
+        }
     }
 
     pub fn to_table_string(&self) -> String {
-        let mut builder = TableBuilder::default();
-        let row1 = vec![&self.r#type.letter, self.column.get_title()];
-        let desc = &self.description.as_ref().cloned().unwrap_or(String::new());
-        let row2 = vec![desc];
-        builder.push_record(row1);
-        builder.push_record(row2);
-        let table = builder
-            .build()
-            .with(Panel::header(&self.title))
-            .with(Style::markdown())
-            .to_string();
+        let desc = self.description.clone().unwrap_or(String::new());
+        let mut proccessed: Vec<[String; 3]> = Vec::new();
+        Self::process_blocker(&mut proccessed, self.blocking_blockers.clone(), false);
+        Self::process_blocker(&mut proccessed, self.blockers.clone(), true);
+        let blockers_len = proccessed.len();
+        let s: String;
+        if let Some(checklist) = &self.checklists {
+            s = checklist
+                .iter()
+                .map(|c| format!("{}", c))
+                .collect::<Vec<String>>()
+                .join("\n\n");
+        } else {
+            s = String::new();
+        }
+        let mut table_data: Vec<[String; 3]> = Vec::from([
+            ["Type".to_string(), "Column".to_string(), "Line".to_string()],
+            [
+                self.r#type.get_letter().to_string(),
+                self.column.get_title().to_string(),
+                self.lane.get_title().to_string(),
+            ],
+            [
+                self.r#type.get_id().to_string(),
+                self.column.get_id().to_string(),
+                self.lane.get_id().to_string(),
+            ],
+            [
+                self.get_string_tags(),
+                self.get_string_members(),
+                Self::display_move_diff(&self.last_moved_at),
+            ],
+        ]);
+
+        table_data.extend(proccessed);
+        table_data.extend([
+            [desc, String::new(), String::new()],
+            [s, String::new(), String::new()],
+        ]);
+        let mut table = Table::new(table_data);
+        let title: String;
+        if self.blocked {
+            title = self.title.red().bold().to_string();
+        } else if self.blocking_card.is_some_and(|v| v) {
+            title = self.title.yellow().bold().to_string();
+        } else {
+            title = self.title.bold().to_string()
+        };
         table
+            .with(Style::modern())
+            .with(Disable::row(Rows::first()))
+            .with(Panel::header(title))
+            .modify((5 + blockers_len, 0), Span::column(3))
+            .modify((6 + blockers_len, 0), Span::column(3))
+            .with(Alignment::center())
+            .with(Width::wrap(130).keep_words())
+            .to_string()
+    }
+
+    fn calculate_hour_diff(lst: &String) -> i64 {
+        let parse_date = lst.parse::<DateTime<Utc>>();
+        if parse_date.is_err() {
+            return -999;
+        } else {
+            let target_date = parse_date.unwrap().with_timezone(&Utc);
+            let now = Utc::now();
+            let duration = now.signed_duration_since(target_date);
+            duration.num_hours()
+        }
+    }
+
+    fn display_move_diff(lst: &String) -> String {
+        let mut hour_diff = Self::calculate_hour_diff(lst);
+        let diff_string = if hour_diff > 24 {
+            let day_diff = hour_diff / 24;
+            hour_diff = hour_diff % 24;
+            let s = format!("{}d{}h", day_diff, hour_diff);
+            s.red().to_string()
+        } else {
+            format!("{}h", hour_diff)
+        };
+        diff_string
     }
 
     pub fn from_string() -> String {
-        let text = Card::new().to_string();
+        let text = String::new();
         let editor = env!("EDITOR");
         let mut tmpfile = Builder::new()
             .suffix(".md")
@@ -168,70 +270,36 @@ impl Card {
             .expect("Could not open file")
             .read_to_string(&mut card_text)
             .expect("Could not read");
-        let title = Card::get_title(&card_text);
-        let tags = Card::get_tags(&card_text);
-        "".to_string()
+        card_text
     }
 
-    fn get_title(card_text: &str) -> String {
-        let title_idx = "## Title:".len();
-        let lane_idx = card_text.find("## Line:").unwrap();
-        card_text[title_idx..lane_idx].to_string()
+    pub fn get_tags(&self) -> Vec<Tag> {
+        self.tags.clone().unwrap_or(vec![])
+    }
+    pub fn get_members(&self) -> Vec<User> {
+        self.members.clone().unwrap_or(vec![])
     }
 
-    fn get_lane(card_text: &str) -> Lane {
-        let lane_idx = card_text.find("## Lane:").unwrap();
-        let column_idx = card_text.find("## Column:").unwrap();
-        let lane = &card_text[lane_idx + "## Lane:".len()..column_idx];
-        Lane::new()
+    pub fn get_string_tags(&self) -> String {
+        let tags = self.get_tags();
+        tags.iter()
+            .map(|t| t.get_name())
+            .collect::<Vec<&str>>()
+            .join(", ")
     }
-
-    fn get_column(card_text: &str) -> Column {
-        let column_idx = card_text.find("## Column:").unwrap();
-        let card_type_idx = card_text.find("## Type:").unwrap();
-        let column = &card_text[column_idx + "## Column:".len()..card_type_idx];
-        Column::new()
-    }
-
-    fn get_type(card_text: &str) -> CardType {
-        let card_type_idx = card_text.find("## Type:").unwrap();
-        let checklists_idx = card_text.find("## Checklists:").unwrap();
-        let card_type = &card_text[card_type_idx + "## Type:".len()..checklists_idx];
-        CardType::new()
-    }
-
-    fn get_checklists(card_text: &str) -> Option<Vec<Checklist>> {
-        let checklists_idx = card_text.rfind("## Checklists:").unwrap();
-        let checklists_strr = &card_text[checklists_idx..];
-        let checklists_str: Vec<&str> = checklists_strr.split("###").collect();
-        let checklists = match checklists_str.len() {
-            1 => None,
-            _ => Some(
-                checklists_str
-                    .into_iter()
-                    .map(|chk| Checklist::from_string(format!("###{}", chk)))
-                    .collect(),
-            ),
-        };
-        checklists
-    }
-
-    fn get_tags(card_text: &str) -> Option<Vec<Tag>> {
-        let tags_idx = card_text.rfind("## Tags:").unwrap();
-        let desc_idx = card_text.find("## Description:").unwrap();
-        let tags_str = &card_text["## Tags:".len() + tags_idx..desc_idx];
-        let tags = match tags_str {
-            "" => None,
-            _ => {
-                let tags_str = tags_str.replace(", ", ",");
-                let tags: Vec<Tag> = tags_str
-                    .split(",")
-                    .map(|tag| Tag::from_string(tag.to_string()))
-                    .collect();
-                Some(tags)
-            }
-        };
-        tags
+    pub fn get_string_members(&self) -> String {
+        let members = self.get_members();
+        members
+            .iter()
+            .map(|m| {
+                if m.is_responsible() {
+                    m.get_username().green().bold().to_string()
+                } else {
+                    m.get_username().to_string()
+                }
+            })
+            .collect::<Vec<String>>()
+            .join(", ")
     }
 
     pub fn is_property(&self, property_id: u32) -> bool {
@@ -275,7 +343,7 @@ impl Card {
 
     fn is_member(&self, username: &str) -> bool {
         if let Some(members) = &self.members {
-            members.iter().any(|m| m.username.eq(username))
+            members.iter().any(|m| m.is_username(username))
         } else {
             false
         }
@@ -304,7 +372,7 @@ fn display_members(o: &Option<Vec<User>>) -> String {
             let mems: Vec<&str> = members
                 .into_iter()
                 .filter(|m| m.is_responsible())
-                .map(|m| m.username.as_str())
+                .map(|m| m.get_username())
                 .collect();
             format!("{}", mems.join(",\n"))
         }
@@ -315,7 +383,7 @@ fn display_members(o: &Option<Vec<User>>) -> String {
 fn display_tags(tags: &Option<Vec<Tag>>) -> String {
     match tags {
         Some(tags) => {
-            let str_tags: Vec<&str> = tags.into_iter().map(|tag| tag.name.as_str()).collect();
+            let str_tags: Vec<&str> = tags.into_iter().map(|tag| tag.get_name()).collect();
             format!("{}", str_tags.join("\n"))
         }
         None => format!(""),

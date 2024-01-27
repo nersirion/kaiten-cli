@@ -13,7 +13,7 @@ impl std::fmt::Display for Checklist {
         match &self.items {
             Some(value) => {
                 let items: Vec<String> = value.into_iter().map(|x| format!("{}", x)).collect();
-                write!(f, "### {}\n\n{}", self.name, items.join("\n"))
+                write!(f, "### {}\n{}", self.name, items.join("\n"))
             }
             None => {
                 write!(f, "")

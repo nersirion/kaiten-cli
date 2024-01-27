@@ -45,6 +45,11 @@ impl Comment {
                 let mut json: Vec<ModelsComment> = response.json().await?;
                 json.sort_by(|a, b| a.created.partial_cmp(&b.created).unwrap());
                 Table::new(json).modify(Columns::first(), Width::wrap(10)).modify(Columns::single(2), Width::wrap(80).keep_words()).with(Style::modern()).to_string()
+            },
+            CommentCommands::New{card_id: _, comment} => {
+                let comment = ModelsComment::from_text(comment);
+                let response = client.post_data(&api_url, comment).await?;
+                response.text().await?
             }
             _ => String::new(),
         };

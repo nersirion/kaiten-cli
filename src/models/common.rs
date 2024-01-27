@@ -143,7 +143,7 @@ impl Info {
     pub fn get_user(&self, username: &str, space_id: Option<u32>) -> Option<User> {
         let users = self.get_users(space_id);
         let mut user: Option<User> = None;
-        let idx = users.iter().position(|u| u.username.eq(username));
+        let idx = users.iter().position(|u| u.is_username(username));
         if let Some(idx) = idx {
             let _ = user.insert(users[idx].clone());
         }

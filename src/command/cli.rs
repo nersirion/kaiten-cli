@@ -1,5 +1,6 @@
 use super::card::Card;
 use super::comment::Comment;
+use super::Link;
 use super::{Config, Init};
 use crate::api::ApiClient;
 use crate::models::common::{CONFIG, INFO};
@@ -30,6 +31,7 @@ pub enum Commands {
     Spaces {},
     Boards {},
     Comments(Comment),
+    Links(Link),
     /// Download all info for long-term entity
     Init(Init),
     Config(Config),
@@ -86,6 +88,10 @@ impl Cli {
             Commands::Comments(comment) => {
                 Info::init_global();
                 comment.get_table(client).await?
+            }
+            Commands::Links(link) => {
+                Info::init_global();
+                link.get_table(client).await?
             }
             _ => String::new(),
         };

@@ -1,6 +1,6 @@
 pub use blocker::Blocker;
 pub use board::Board;
-pub use card::Card;
+pub use card::{Card, RelatedCard};
 pub use card_type::CardType;
 pub use column::Column;
 pub use comment::Comment;

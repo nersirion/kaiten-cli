@@ -4,13 +4,13 @@ use serde_derive::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct CardType {
     id: u32,
-    pub name: String,
-    pub letter: String,
+    name: String,
+    letter: String,
     archived: bool,
 }
 impl std::fmt::Display for CardType {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}", self.letter)
+        write!(f, "{}", self.get_letter())
     }
 }
 impl CardType {
@@ -21,5 +21,14 @@ impl CardType {
             letter: String::new(),
             archived: false
         }
+    }
+    pub fn get_id(&self) -> u32 {
+        self.id
+    }
+    pub fn get_name(&self) -> &str {
+        &self.name
+    }
+    pub fn get_letter(&self) -> &str {
+        &self.letter
     }
 }

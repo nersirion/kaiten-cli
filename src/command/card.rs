@@ -326,17 +326,7 @@ impl Card {
         let table = match &self.command {
             CardCommands::Get { card_id: _ } => {
                 let card: ModelsCard = response.json().await?;
-                Table::new(vec![card])
-                    .modify(Columns::first(), Width::increase(10))
-                    .modify(Columns::single(1), Width::wrap(70).keep_words())
-                    .modify(Columns::single(2), Width::increase(10))
-                    .with(Style::modern())
-                    .with(Width::wrap(Percent(98)).keep_words())
-                    .to_string()
-                // card.get_table(vec![json])
-                // println!("{:#?}", card);
-                // card.to_table_string()
-                // String::new()
+                card.to_table_string()
             }
             CardCommands::Ls(ls) => {
                 let mut cards: Vec<ModelsCard> = response.json().await?;
@@ -356,17 +346,17 @@ impl Card {
                     .modify(Columns::single(1), Width::wrap(70).keep_words())
                     .modify(Columns::single(2), Width::increase(10))
                     .with(Style::modern())
-                    .with(Width::wrap(Percent(98)).keep_words())
+                    .with(Width::wrap(135).keep_words())
                     .to_string()
             }
-            CardCommands::Parents { card_id } => {
+            CardCommands::Parents { card_id: _ } => {
                 let card: ModelsCard = response.json().await?;
                 Table::new(card.get_parents())
                     .modify(Columns::single(1), Width::wrap(80).keep_words())
                     .with(Style::modern())
                     .to_string()
             }
-            CardCommands::Childrens { card_id } => {
+            CardCommands::Childrens { card_id: _ } => {
                 let card: ModelsCard = response.json().await?;
                 Table::new(card.get_childrens())
                     .modify(Columns::single(1), Width::wrap(80).keep_words())
@@ -377,7 +367,7 @@ impl Card {
             CardCommands::New {} => ModelsCard::from_string(),
 
             CardCommands::Mv {
-                card_id,
+                card_id: _,
                 column_id,
                 lane_id,
                 add_responsible,
@@ -394,28 +384,18 @@ impl Card {
                         format!("Not found board_id for column_id: {}", column_id).into();
                     return Err(err);
                 }
-                // println!("{:#?}", card);
                 let api_url = self.get_url();
-                let response = client.patch_data(&api_url, card).await?;
-                let status_code = &response.status();
-                let text = response.text().await?;
-                println!("{} {}", status_code, text);
+                let _ = client.patch_data(&api_url, card).await?;
                 if let Some(username) = add_responsible {
                     let user = info.get_user(&username, None);
-                    let api_url = format!("{}/members", api_url);
-                    let response = client.post_data(&api_url, user).await?;
+                    if let Some(mut user) = user {
+                        user.set_responsible();
+                        let api_url = format!("{}/members", api_url);
+                        let _ = client.post_data(&api_url, &user).await?;
+                        let api_url = format!("{}/{}", api_url, user.get_id());
+                        let _ = client.patch_data(&api_url, user).await?;
+                    }
                 };
-
-                // let mut columns_vec = Vec::from_iter(columns.iter().map(|(_, column)| column));
-                // columns_vec.sort_by(|a, b| a.sort_order.partial_cmp(&b.sort_order).unwrap());
-                // let idx = columns_vec.iter().position(|&x| x.title == card.column.title).unwrap();
-                // if idx < columns_vec.len() {
-                //     card.column = columns_vec[idx+1].clone();
-                // }
-                // println!("{:#?}", card);
-                // let m = M{column_id: columns_vec[idx+1].id};
-                // let res = patch_data(&client, url.as_str(), m).await?;
-                // println!("{:?}", res);
                 String::from("")
             }
             _ => String::from(""),

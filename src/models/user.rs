@@ -3,8 +3,9 @@ use serde_derive::{Serialize,Deserialize};
 use tabled::Tabled;
 #[derive(Serialize, Deserialize, Debug, Tabled, Clone)]
 pub struct User{
-    pub id: u32,
-    pub username: String,
+    #[serde(rename(serialize="user_id"))]
+    id: u32,
+    username: String,
     #[tabled(skip)]
     #[serde(default = "Role::default", deserialize_with = "User::deserialize_type", serialize_with = "User::serialize_type")]
     r#type: Role
@@ -29,6 +30,14 @@ impl std::fmt::Display for User {
 }
 impl User {
 
+    pub fn default() -> Self {
+        User {
+            id: 0,
+            username: String::new(),
+            r#type: Role::Empty
+        }
+    }
+
     fn deserialize_type<'de, D>(deserializer: D) -> Result<Role, D::Error>
     where
         D: De<'de>,
@@ -47,12 +56,12 @@ impl User {
         S: Se,
     {
         let value = match role {
-            Role::Empty => None,
+            Role::Empty => 1,
             Role::Responsible(flag) => {
                 if *flag {
-                    Some(2)
+                    2
                 } else {
-                    Some(1)
+                    1
                 }
             }
 
@@ -60,10 +69,25 @@ impl User {
         value.serialize(serializer)
     }
 
+    pub fn get_id(&self) -> u32 {
+        self.id
+    }
+
+    pub fn get_username(&self) -> &str {
+        &self.username
+    }
+
+    pub fn set_responsible(&mut self) {
+        self.r#type = Role::Responsible(true)
+    }
+
     pub fn is_responsible(&self) -> bool {
         match self.r#type {
             Role::Responsible(flag) => flag,
             Role::Empty => false
         }
+    }
+    pub fn is_username(&self, username: &str) -> bool {
+        self.username.eq(username)
     }
 }

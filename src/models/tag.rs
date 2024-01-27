@@ -2,10 +2,10 @@
 use tabled::Tabled;
 use serde_derive::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug, Tabled)]
+#[derive(Serialize, Deserialize, Debug, Tabled, Clone)]
 pub struct Tag {
     id: u32,
-    pub name: String,
+    name: String,
 }
 
 impl Tag {
@@ -14,5 +14,8 @@ impl Tag {
             id: 0,
             name: text
         }
+    }
+    pub fn get_name(&self) -> &str {
+        &self.name
     }
 }
