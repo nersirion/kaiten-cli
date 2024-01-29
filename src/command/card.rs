@@ -28,6 +28,12 @@ pub enum CardCommands {
     /// edit card
     Edit {
         card_id: u32,
+        /// Set new desctiption for card
+        #[arg(long,short='d')]
+        description: Option<String>,
+        /// Add description for card
+        #[arg(long,short='D')]
+        add_description: Option<String>
     },
     /// create new card
     New {},
@@ -311,7 +317,7 @@ impl Card {
         match &self.command {
             CardCommands::Ls(ls) => ls.get_url(),
             CardCommands::Get { card_id }
-            | CardCommands::Edit { card_id }
+            | CardCommands::Edit { card_id, .. }
             | CardCommands::Mv { card_id, .. }
             | CardCommands::Parents { card_id }
             | CardCommands::Childrens { card_id } => {
@@ -327,6 +333,17 @@ impl Card {
             CardCommands::Get { card_id: _ } => {
                 let card: ModelsCard = response.json().await?;
                 card.to_table_string()
+            }
+            CardCommands::Edit{card_id: _, description, add_description} => {
+                let mut card: ModelsCard = response.json().await?;
+                if let Some(desc) = description {
+                    card.set_description(desc.to_owned(), false);
+                };
+                if let Some(add_desc) = add_description {
+                    card.set_description(add_desc.to_owned(), true);
+                };
+                let _ = client.patch_data(&api_url, card).await?;
+                String::new()
             }
             CardCommands::Ls(ls) => {
                 let mut cards: Vec<ModelsCard> = response.json().await?;

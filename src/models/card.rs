@@ -337,6 +337,20 @@ impl Card {
         self.lane_id = lane_id
     }
 
+    pub fn set_description(&mut self, description: String, append: bool) {
+        let new_desc = match &self.description {
+            Some(desc) => {
+                if append {
+                    format!("{}\n{}", desc, description)
+                } else {
+                    description
+                }
+            }
+            None => description,
+        };
+        self.description = Some(new_desc);
+    }
+
     fn is_member(&self, username: &str) -> bool {
         if let Some(members) = &self.members {
             members.iter().any(|m| m.is_username(username))
