@@ -12,12 +12,6 @@ pub struct Comment {
     #[tabled(skip)]
     #[serde(skip_serializing)]
     edited: bool,
-    #[tabled(skip)]
-    #[serde(skip_serializing)]
-    card_id: u32,
-    #[tabled(skip)]
-    #[serde(skip_serializing)]
-    author_id: u32,
     #[serde(skip_serializing)]
     author: User,
 }
@@ -34,8 +28,6 @@ impl Comment {
             id: 0,
             text: text.to_string(),
             edited: false,
-            card_id: 0,
-            author_id: 0,
             author: User::default()
         }
     }

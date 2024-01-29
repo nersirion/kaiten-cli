@@ -1,18 +1,11 @@
 use chrono::prelude::*;
-use clap::Parser;
 use colored::Colorize;
 use serde_derive::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::{fs::File, process::Command};
 use tabled::{
-    builder::Builder as TableBuilder,
-    col, row,
-    settings::{
-        object::{Columns, Rows},
-        Alignment, Concat, Disable, Format, Merge, Panel, Settings, Span, Style, Width,
-    },
-    tables::PoolTable,
+    settings::{object::Rows, Alignment, Disable, Panel, Span, Style, Width},
     Table, Tabled,
 };
 
@@ -22,8 +15,8 @@ use tempfile::Builder;
 #[derive(Serialize, Deserialize, Debug, Tabled)]
 pub struct Card {
     id: u32,
-    pub title: String,
-    pub column: Column,
+    title: String,
+    column: Column,
     #[tabled(skip)]
     column_id: u32,
     #[tabled(skip)]
@@ -89,6 +82,13 @@ pub struct RelatedCard {
     state: u8,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(untagged)]
+enum PropertiesValue {
+    S(String),
+    V(Vec<u32>),
+}
+
 impl RelatedCard {
     pub fn get_id(&self) -> u32 {
         self.id
@@ -98,14 +98,8 @@ impl RelatedCard {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(untagged)]
-enum PropertiesValue {
-    S(String),
-    V(Vec<u32>),
-}
-
 impl Card {
+    #[allow(dead_code)]
     fn new() -> Card {
         Card {
             id: 1,
@@ -148,17 +142,19 @@ impl Card {
                 } else {
                     reason.yellow().to_string()
                 };
-                let mut btitle = String::new();
-                let mut bcardid = String::new();
-                if let Some(card) = b.get_card() {
-                    btitle = card.get_title().to_string();
-                    btitle = if red {
-                        btitle.red().to_string()
-                    } else {
-                        btitle.yellow().to_string()
-                    };
-                    bcardid = card.get_id().to_string();
-                }
+                let (btitle, bcardid) = match b.get_card() {
+                    Some(card) => {
+                        let btitle = card.get_title().to_string();
+                        let btitle = if red {
+                            btitle.red().to_string()
+                        } else {
+                            btitle.yellow().to_string()
+                        };
+                        let bcardid = card.get_id().to_string();
+                        (btitle, bcardid)
+                    }
+                    None => (String::new(), String::new()),
+                };
                 proccessed.push([reason, btitle, bcardid])
             }
         }
@@ -354,15 +350,6 @@ impl Card {
     }
     pub fn get_childrens(&self) -> Vec<RelatedCard> {
         self.children.as_ref().cloned().unwrap_or(vec![])
-    }
-}
-
-fn display_description(o: &Option<String>) -> String {
-    match o {
-        Some(descr) => {
-            format!("{}", descr)
-        }
-        None => format!(""),
     }
 }
 

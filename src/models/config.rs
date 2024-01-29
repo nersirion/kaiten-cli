@@ -117,4 +117,8 @@ impl Config {
             }
         }
     }
+
+    pub fn reset(&mut self) {
+        *self = Self::new();
+    }
 }

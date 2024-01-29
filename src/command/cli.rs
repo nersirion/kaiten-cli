@@ -4,10 +4,11 @@ use super::Link;
 use super::{Config, Init};
 use crate::api::ApiClient;
 use crate::models::common::{CONFIG, INFO};
-use crate::models::{Config as ModelsConfig, Info, User};
+use crate::models::{Config as ModelsConfig, Info};
 use clap::{Parser, Subcommand};
 use tabled::{settings::Style, Table};
-use tabled::settings::{object::{Columns as Cols}, Width, measurement::Percent};
+use tabled::settings::{object::Columns as Cols, Width};
+use std::sync::Mutex;
 
 #[derive(Parser)]
 #[clap(author, version, about, long_about = None)]
@@ -19,6 +20,9 @@ pub struct Cli {
     space_id: Option<u32>,
     #[arg(long, short, global = true)]
     board_id: Option<u32>,
+    /// Don't use config values for filters
+    #[arg(long, short, global = true)]
+    ignore_config: bool,
 }
 
 #[derive(Subcommand)]
@@ -43,6 +47,9 @@ impl Cli {
         {
             let mut config = CONFIG.lock().unwrap();
             config.update(self.space_id, self.board_id);
+            if self.ignore_config {
+                config.reset();
+            }
         }
         let client = ApiClient::default()?;
         let result = match &self.command {
@@ -93,7 +100,6 @@ impl Cli {
                 Info::init_global();
                 link.get_table(client).await?
             }
-            _ => String::new(),
         };
         Ok(result)
     }
