@@ -78,7 +78,9 @@ pub struct RelatedCard {
     lane_id: u32,
     #[tabled(rename = "type")]
     r#type: CardType,
+    #[tabled(skip)]
     condition: u8,
+    #[tabled(skip)]
     state: u8,
 }
 
@@ -349,6 +351,10 @@ impl Card {
             None => description,
         };
         self.description = Some(new_desc);
+    }
+
+    pub fn set_title(&mut self, title: String) {
+        self.title = title;
     }
 
     fn is_member(&self, username: &str) -> bool {

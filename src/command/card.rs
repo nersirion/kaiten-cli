@@ -33,7 +33,13 @@ pub enum CardCommands {
         description: Option<String>,
         /// Add description for card
         #[arg(long,short='D')]
-        add_description: Option<String>
+        add_description: Option<String>,
+        #[arg(long,short='t')]
+        title: Option<String>,
+        #[arg(long,short='t')]
+        column_id: Option<u32>,
+        #[arg(long,short='l')]
+        lane_id: Option<u32>,
     },
     /// create new card
     New {},
@@ -334,13 +340,27 @@ impl Card {
                 let card: ModelsCard = response.json().await?;
                 card.to_table_string()
             }
-            CardCommands::Edit{card_id: _, description, add_description} => {
+            CardCommands::Edit{card_id: _, description, add_description, title, column_id, lane_id} => {
                 let mut card: ModelsCard = response.json().await?;
                 if let Some(desc) = description {
                     card.set_description(desc.to_owned(), false);
                 };
                 if let Some(add_desc) = add_description {
                     card.set_description(add_desc.to_owned(), true);
+                };
+                if let Some(title) = title {
+                    card.set_title(title.to_owned());
+                };
+                if let Some(column_id) = column_id {
+                    card.set_column_id(*column_id);
+                    let info = INFO.get().unwrap();
+                    let board_id = info.get_board_id_by_column_id(*column_id);
+                    if let Some(board_id) = board_id {
+                        card.set_board_id(board_id);
+                    };
+                };
+                if let Some(lane_id) = lane_id {
+                    card.set_lane_id(*lane_id);
                 };
                 let _ = client.patch_data(&api_url, card).await?;
                 String::new()

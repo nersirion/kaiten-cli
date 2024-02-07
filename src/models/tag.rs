@@ -9,12 +9,6 @@ pub struct Tag {
 }
 
 impl Tag {
-    pub fn from_string(text: String) -> Self {
-        Tag {
-            id: 0,
-            name: text
-        }
-    }
     pub fn get_name(&self) -> &str {
         &self.name
     }
